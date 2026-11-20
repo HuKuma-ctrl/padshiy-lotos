@@ -27,7 +27,8 @@
   </div>
 
   <div class="hub-buttons">
-    <button class="btn btn-gold" id="btn-meditate">🧘 Культивация</button>
+    <button class="btn btn-gold" id="btn-cave">🕳️ Пещера Культивации</button>
+    <button class="btn btn-gold" id="btn-forge">🔥 Печь Крафта</button>
     <div id="floor-buttons"></div>
     <button class="btn btn-share" id="btn-share">📣 Поделиться</button>
   </div>
@@ -43,53 +44,10 @@
     <button class="btn btn-back" id="btn-share-close">Продолжить</button>
   </div>
 
-  <div class="upgrades-panel" id="craft-panel">
-    <div class="panel-title">Крафт из пепла 🔥</div>
-    <div id="talisman-list"></div>
-  </div>
-
   <div class="upgrades-panel" id="achv-panel">
     <div class="panel-title">Достижения</div>
     <div id="achv-list"></div>
   </div>
-
-  <div class="upgrades-panel">
-    <div class="panel-title">Прокачка</div>
-    <div class="upgrade" id="upg-breath">
-      <div class="upgrade-info">
-        <div class="upgrade-name">🌬️ Дыхание Лотоса <span class="lvl" id="lvl-breath">0</span></div>
-        <div class="upgrade-desc">+1 ци за тап</div>
-      </div>
-      <button class="btn btn-small" id="buy-breath">30</button>
-    </div>
-    <div class="upgrade" id="upg-sword">
-      <div class="upgrade-info">
-        <div class="upgrade-name">⚔️ Сила Меча <span class="lvl" id="lvl-sword">0</span></div>
-        <div class="upgrade-desc">+4 к урону</div>
-      </div>
-      <button class="btn btn-small" id="buy-sword">50</button>
-    </div>
-    <div class="upgrade" id="upg-body">
-      <div class="upgrade-info">
-        <div class="upgrade-name">💎 Нефритовое Тело <span class="lvl" id="lvl-body">0</span></div>
-        <div class="upgrade-desc">+25 к здоровью</div>
-      </div>
-      <button class="btn btn-small" id="buy-body">40</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== ЭКРАН: МЕДИТАЦИЯ (КЛИКЕР) ===== -->
-<div id="screen-meditate" class="screen">
-  <div class="topbar">
-    <button class="btn btn-back" id="back-meditate">← Назад</button>
-    <div class="topbar-qi">✨ <b id="med-qi">0</b></div>
-  </div>
-  <div class="meditate-hint">Коснитесь лотоса. Соберите ци.</div>
-  <div id="lotus-area">
-    <canvas id="lotus-canvas"></canvas>
-  </div>
-  <div class="meditate-tap-info">за тап: <b id="med-per-tap">1</b> ци</div>
 </div>
 
 <!-- ===== ЭКРАН: БОЙ ===== -->
@@ -153,6 +111,28 @@
     </button>
   </div>
   <div class="choice-warning">Выбор необратим для этого жизненного цикла</div>
+</div>
+
+<!-- ===== ЭКРАН: ПЕЩЕРА КУЛЬТИВАЦИИ ===== -->
+<div id="screen-cave" class="screen">
+  <div class="topbar">
+    <button class="btn btn-back" id="back-cave">← Назад</button>
+    <div class="topbar-qi">✨ <b id="cave-qi">0</b></div>
+  </div>
+  <canvas id="cave-canvas"></canvas>
+</div>
+
+<!-- ===== ЭКРАН: ПЕЧЬ КРАФТА ===== -->
+<div id="screen-forge" class="screen">
+  <div class="topbar">
+    <button class="btn btn-back" id="back-forge">← Назад</button>
+    <div class="topbar-qi">🔥 <b id="forge-ash">0</b></div>
+  </div>
+  <canvas id="forge-canvas"></canvas>
+  <div class="forge-list-wrap">
+    <div class="panel-title">Талисманы из пепла</div>
+    <div id="talisman-list"></div>
+  </div>
 </div>
 
 <script src="sprites.js"></script>

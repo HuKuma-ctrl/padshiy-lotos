@@ -182,6 +182,14 @@ html, body {
 
 /* ===== БОЙ ===== */
 #screen-battle { padding: 0; }
+#screen-cave, #screen-forge { padding: 0; }
+#cave-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: manipulation; }
+#screen-cave .topbar, #screen-forge .topbar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+  padding: max(12px, env(safe-area-inset-top)) 12px 0;
+}
+#forge-canvas { width: 100%; height: 300px; display: block; }
+.forge-list-wrap { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
 #battle-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .battle-ui {
   position: absolute;

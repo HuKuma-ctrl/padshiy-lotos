@@ -500,8 +500,255 @@ function drawLotus(ctx, cx, cy, R, t) {
   }
 }
 
-/* ---------- Декорации: бамбук ---------- */
-function drawBamboo(ctx, x, y, h, alpha) {
+/* ---------- ПЕЩЕРА КУЛЬТИВАЦИИ ---------- */
+
+// Медитирующий культиватор (сидит со скрещенными ногами)
+function drawMeditator(ctx, x, y, r, t, fallen) {
+  const robeMain = fallen ? '#4a1520' : '#2c3a5e';
+  const robeDark = fallen ? '#2a0a12' : '#1a2440';
+  const trim = fallen ? '#e05656' : '#e8c15a';
+  const breathe = 1 + Math.sin(t * 1.2) * 0.02;
+
+  // Аура медитации
+  const auraR = r * 1.7 * breathe;
+  const aura = ctx.createRadialGradient(x, y, r * 0.3, x, y, auraR);
+  aura.addColorStop(0, fallen ? 'rgba(224,86,86,.25)' : 'rgba(232,193,90,.22)');
+  aura.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = aura;
+  ctx.beginPath(); ctx.arc(x, y, auraR, 0, Math.PI * 2); ctx.fill();
+
+  // Тело (широкий треугольник сидящей позы)
+  spGlow(ctx, trim, 12);
+  ctx.fillStyle = spRadial(ctx, x, y, r * 1.1, robeMain, robeDark);
+  ctx.beginPath();
+  ctx.moveTo(x, y - r * 0.9);
+  ctx.quadraticCurveTo(x + r * 0.55, y - r * 0.5, x + r * 0.8, y + r * 0.35);
+  ctx.quadraticCurveTo(x + r * 1.05, y + r * 0.75, x + r * 0.55, y + r * 0.8);
+  ctx.lineTo(x - r * 0.55, y + r * 0.8);
+  ctx.quadraticCurveTo(x - r * 1.05, y + r * 0.75, x - r * 0.8, y + r * 0.35);
+  ctx.quadraticCurveTo(x - r * 0.55, y - r * 0.5, x, y - r * 0.9);
+  ctx.fill();
+  spNoGlow(ctx);
+
+  // Руки в мудре (овал на коленях)
+  ctx.fillStyle = '#e8c8a0';
+  ctx.beginPath(); ctx.ellipse(x, y + r * 0.42, r * 0.22, r * 0.13, 0, 0, Math.PI * 2); ctx.fill();
+
+  // Голова
+  ctx.beginPath(); ctx.arc(x, y - r * 0.68, r * 0.3, 0, Math.PI * 2); ctx.fill();
+  // Волосы и пучок
+  ctx.fillStyle = fallen ? '#3a0a0a' : '#1a1a2a';
+  ctx.beginPath(); ctx.arc(x, y - r * 0.83, r * 0.23, Math.PI, 0); ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y - r * 1.02, r * 0.09, 0, Math.PI * 2); ctx.fill();
+  // Закрытые глаза (дуги)
+  ctx.strokeStyle = fallen ? '#ff6060' : '#2a2a3a';
+  ctx.lineWidth = Math.max(1.5, r * 0.035);
+  ctx.beginPath(); ctx.arc(x - r * 0.12, y - r * 0.66, r * 0.07, 0.2, Math.PI - 0.2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x + r * 0.12, y - r * 0.66, r * 0.07, 0.2, Math.PI - 0.2); ctx.stroke();
+
+  // Парящие сферы ци
+  for (let i = 0; i < 3; i++) {
+    const a = t * 0.8 + (i * Math.PI * 2) / 3;
+    const ox = x + Math.cos(a) * r * 1.05;
+    const oy = y - r * 0.2 + Math.sin(a) * r * 0.55;
+    spGlow(ctx, trim, 10);
+    ctx.fillStyle = trim;
+    ctx.globalAlpha = 0.8;
+    ctx.beginPath(); ctx.arc(ox, oy, r * 0.07, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+    spNoGlow(ctx);
+  }
+}
+
+// Фон пещеры: сталактиты, кристаллы, туман
+function drawCaveBg(ctx, w, h, t, fallen) {
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  if (fallen) {
+    g.addColorStop(0, '#1a0a10');
+    g.addColorStop(0.7, '#221014');
+    g.addColorStop(1, '#160a0c');
+  } else {
+    g.addColorStop(0, '#0a0d18');
+    g.addColorStop(0.7, '#101426');
+    g.addColorStop(1, '#0a0c16');
+  }
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+
+  // Сталактиты
+  ctx.fillStyle = 'rgba(30,34,52,.9)';
+  for (let i = 0; i < 7; i++) {
+    const sx = (i / 6) * w + Math.sin(i * 7) * 18;
+    const len = 40 + ((i * 53) % 70);
+    const wid = 16 + ((i * 31) % 18);
+    ctx.beginPath();
+    ctx.moveTo(sx - wid, 0);
+    ctx.lineTo(sx, len);
+    ctx.lineTo(sx + wid, 0);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Светящиеся кристаллы по краям
+  const cryst = fallen ? '#e05656' : '#60c0ff';
+  [[w * 0.06, h * 0.55, 16], [w * 0.94, h * 0.45, 20], [w * 0.1, h * 0.85, 13], [w * 0.9, h * 0.8, 15]].forEach(([cx, cy, cr], i) => {
+    const pulse = 0.6 + Math.sin(t * 2 + i * 1.7) * 0.3;
+    spGlow(ctx, cryst, 16 * pulse);
+    ctx.fillStyle = cryst;
+    ctx.globalAlpha = 0.75;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - cr);
+    ctx.lineTo(cx + cr * 0.55, cy);
+    ctx.lineTo(cx, cy + cr);
+    ctx.lineTo(cx - cr * 0.55, cy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    spNoGlow(ctx);
+  });
+
+  // Туман внизу
+  const mist = ctx.createLinearGradient(0, h * 0.75, 0, h);
+  mist.addColorStop(0, 'rgba(0,0,0,0)');
+  mist.addColorStop(1, fallen ? 'rgba(90,20,26,.25)' : 'rgba(90,140,180,.12)');
+  ctx.fillStyle = mist;
+  ctx.fillRect(0, h * 0.75, w, h * 0.25);
+}
+
+// Пьедестал со станцией прокачки
+function drawPedestal(ctx, x, y, r, active, trim) {
+  // каменная тумба
+  ctx.fillStyle = '#2a2e42';
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.9, y + r * 0.7);
+  ctx.lineTo(x - r * 0.7, y + r * 0.15);
+  ctx.lineTo(x + r * 0.7, y + r * 0.15);
+  ctx.lineTo(x + r * 0.9, y + r * 0.7);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#3a4058';
+  ctx.fillRect(x - r * 0.8, y + r * 0.05, r * 1.6, r * 0.16);
+  if (active) {
+    spGlow(ctx, trim, 14);
+    ctx.strokeStyle = trim;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y - r * 0.5, r * 0.55, 0, Math.PI * 2); ctx.stroke();
+    spNoGlow(ctx);
+  }
+}
+
+// Меч для станции урона
+function drawSwordIcon(ctx, x, y, r, trim) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(-0.5);
+  spGlow(ctx, trim, 10);
+  const blade = ctx.createLinearGradient(0, -r, 0, 0);
+  blade.addColorStop(0, '#ffffff');
+  blade.addColorStop(1, trim);
+  ctx.fillStyle = blade;
+  ctx.fillRect(-r * 0.09, -r, r * 0.18, r * 0.85);
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.09, -r);
+  ctx.lineTo(0, -r * 1.2);
+  ctx.lineTo(r * 0.09, -r);
+  ctx.fill();
+  spNoGlow(ctx);
+  ctx.fillStyle = trim;
+  ctx.fillRect(-r * 0.35, -r * 0.15, r * 0.7, r * 0.1);
+  ctx.fillStyle = '#3a2a1a';
+  ctx.fillRect(-r * 0.06, -r * 0.05, r * 0.12, r * 0.4);
+  ctx.restore();
+}
+
+// Сердце для станции здоровья
+function drawHeartIcon(ctx, x, y, r, trim) {
+  spGlow(ctx, '#ff5a6a', 12);
+  const g = ctx.createLinearGradient(x, y - r, x, y + r);
+  g.addColorStop(0, '#ff7a8a');
+  g.addColorStop(1, '#c02038');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(x, y + r * 0.85);
+  ctx.bezierCurveTo(x - r * 1.3, y - r * 0.1, x - r * 0.7, y - r * 1.0, x, y - r * 0.35);
+  ctx.bezierCurveTo(x + r * 0.7, y - r * 1.0, x + r * 1.3, y - r * 0.1, x, y + r * 0.85);
+  ctx.fill();
+  spNoGlow(ctx);
+  ctx.fillStyle = 'rgba(255,255,255,.35)';
+  ctx.beginPath(); ctx.ellipse(x - r * 0.35, y - r * 0.35, r * 0.2, r * 0.12, -0.5, 0, Math.PI * 2); ctx.fill();
+}
+
+/* ---------- ПЕЧЬ КРАФТА ---------- */
+function drawFurnace(ctx, x, y, r, t) {
+  // Каменная арка
+  ctx.fillStyle = '#3a3230';
+  ctx.beginPath();
+  ctx.moveTo(x - r, y + r * 1.1);
+  ctx.lineTo(x - r, y - r * 0.3);
+  ctx.quadraticCurveTo(x, y - r * 1.5, x + r, y - r * 0.3);
+  ctx.lineTo(x + r, y + r * 1.1);
+  ctx.closePath();
+  ctx.fill();
+  // Кирпичная кладка
+  ctx.strokeStyle = 'rgba(0,0,0,.35)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(x - r + 4, y - r * 0.4 + i * r * 0.38);
+    ctx.lineTo(x + r - 4, y - r * 0.4 + i * r * 0.38);
+    ctx.stroke();
+  }
+  // Огненный зев
+  const flick = 1 + Math.sin(t * 9) * 0.06 + Math.sin(t * 23) * 0.03;
+  const fire = ctx.createRadialGradient(x, y + r * 0.25, r * 0.1, x, y + r * 0.25, r * 0.75 * flick);
+  fire.addColorStop(0, '#fff0a0');
+  fire.addColorStop(0.4, '#ff9030');
+  fire.addColorStop(1, 'rgba(160,30,10,.9)');
+  ctx.fillStyle = '#160c08';
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.62, y + r * 0.95);
+  ctx.lineTo(x - r * 0.62, y + r * 0.05);
+  ctx.quadraticCurveTo(x, y - r * 0.85, x + r * 0.62, y + r * 0.05);
+  ctx.lineTo(x + r * 0.62, y + r * 0.95);
+  ctx.closePath();
+  ctx.fill();
+  spGlow(ctx, '#ff8030', 26);
+  ctx.fillStyle = fire;
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.5, y + r * 0.9);
+  ctx.lineTo(x - r * 0.5, y + r * 0.2);
+  ctx.quadraticCurveTo(x, y - r * 0.65, x + r * 0.5, y + r * 0.2);
+  ctx.lineTo(x + r * 0.5, y + r * 0.9);
+  ctx.closePath();
+  ctx.fill();
+  spNoGlow(ctx);
+  // Языки пламени
+  ctx.fillStyle = 'rgba(255,220,120,.85)';
+  for (let i = 0; i < 4; i++) {
+    const fx = x + (i - 1.5) * r * 0.24;
+    const fh = (0.35 + 0.2 * Math.sin(t * 11 + i * 2.3)) * r;
+    ctx.beginPath();
+    ctx.moveTo(fx - r * 0.09, y + r * 0.9);
+    ctx.quadraticCurveTo(fx - r * 0.12, y + r * 0.9 - fh * 0.6, fx, y + r * 0.9 - fh);
+    ctx.quadraticCurveTo(fx + r * 0.12, y + r * 0.9 - fh * 0.6, fx + r * 0.09, y + r * 0.9);
+    ctx.fill();
+  }
+  // Искры
+  for (let i = 0; i < 6; i++) {
+    const sy = y + r * 0.7 - ((t * 40 + i * 37) % (r * 1.3));
+    const sx = x + Math.sin(t * 3 + i * 2) * r * 0.35;
+    ctx.fillStyle = 'rgba(255,200,90,' + (0.8 - ((y + r * 0.7 - sy) / (r * 1.3)) * 0.7) + ')';
+    ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI * 2); ctx.fill();
+  }
+  // Свечение на полу
+  const floor = ctx.createRadialGradient(x, y + r * 1.1, 0, x, y + r * 1.1, r * 1.4);
+  floor.addColorStop(0, 'rgba(255,140,50,.25)');
+  floor.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = floor;
+  ctx.beginPath(); ctx.ellipse(x, y + r * 1.1, r * 1.4, r * 0.35, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+/* ---------- Декорации: бамбук ---------- */function drawBamboo(ctx, x, y, h, alpha) {
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.strokeStyle = '#2a5a3a';

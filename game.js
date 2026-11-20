@@ -320,7 +320,8 @@ document.getElementById('btn-share-tg').onclick = () => {
 /* ================= UI: ЭКРАНЫ ================= */
 const screens = {
   hub: document.getElementById('screen-hub'),
-  meditate: document.getElementById('screen-meditate'),
+  cave: document.getElementById('screen-cave'),
+  forge: document.getElementById('screen-forge'),
   battle: document.getElementById('screen-battle'),
   choice: document.getElementById('screen-choice'),
 };
@@ -349,18 +350,6 @@ function refreshHub() {
     if (state.sound) SFX.heal();
   };
 
-  document.getElementById('lvl-breath').textContent = state.upgrades.breath;
-  document.getElementById('lvl-sword').textContent = state.upgrades.sword;
-  document.getElementById('lvl-body').textContent = state.upgrades.body;
-
-  const bc = ECON.breathCost(), sc = ECON.swordCost(), dc = ECON.bodyCost();
-  const btnB = document.getElementById('buy-breath');
-  const btnS = document.getElementById('buy-sword');
-  const btnD = document.getElementById('buy-body');
-  btnB.textContent = fmt(bc); btnB.disabled = state.qi < bc;
-  btnS.textContent = fmt(sc); btnS.disabled = state.qi < sc;
-  btnD.textContent = fmt(dc); btnD.disabled = state.qi < dc;
-
   renderTalismans();
   renderFloorButtons();
   renderAchievements();
@@ -368,16 +357,6 @@ function refreshHub() {
   // мягкие проверки достижений по состоянию
   if (state.qi >= 10000) unlockAchievement('rich');
   if (Object.values(state.talismans).some(l => l >= 3)) unlockAchievement('talisman');
-}
-
-function buyUpgrade(kind) {
-  const costFn = { breath: ECON.breathCost, sword: ECON.swordCost, body: ECON.bodyCost }[kind];
-  const cost = costFn();
-  if (state.qi < cost) return;
-  state.qi -= cost;
-  state.upgrades[kind]++;
-  saveState();
-  refreshHub();
 }
 
 function renderTalismans() {
@@ -402,6 +381,9 @@ function renderTalismans() {
       state.ash -= cost;
       state.talismans[t.id]++;
       saveState();
+      document.getElementById('forge-ash').textContent = fmt(state.ash);
+      SFX.skill();
+      renderTalismans();
       refreshHub();
     };
     row.appendChild(btn);
@@ -424,64 +406,168 @@ function renderFloorButtons() {
   });
 }
 
-document.getElementById('buy-breath').onclick = () => buyUpgrade('breath');
-document.getElementById('buy-sword').onclick = () => buyUpgrade('sword');
-document.getElementById('buy-body').onclick = () => buyUpgrade('body');
-
-document.getElementById('btn-meditate').onclick = () => {
-  document.getElementById('med-qi').textContent = fmt(state.qi);
-  document.getElementById('med-per-tap').textContent = ECON.tapQi();
-  showScreen('meditate');
+document.getElementById('btn-cave').onclick = () => {
+  showScreen('cave');
+  resizeCave();
+  document.getElementById('cave-qi').textContent = fmt(state.qi);
 };
-document.getElementById('back-meditate').onclick = () => { refreshHub(); showScreen('hub'); };
+document.getElementById('back-cave').onclick = () => { refreshHub(); showScreen('hub'); };
+document.getElementById('btn-forge').onclick = () => {
+  showScreen('forge');
+  resizeForge();
+  document.getElementById('forge-ash').textContent = fmt(state.ash);
+  renderTalismans();
+};
+document.getElementById('back-forge').onclick = () => { refreshHub(); showScreen('hub'); };
 
-/* ================= МЕДИТАЦИЯ (КЛИКЕР) ================= */
-const lotus = document.getElementById('lotus-canvas');
-const lotusArea = document.getElementById('lotus-area');
-const lotusCtx = lotus.getContext('2d');
+/* ================= ПЕЩЕРА КУЛЬТИВАЦИИ ================= */
+const caveCanvas = document.getElementById('cave-canvas');
+const caveCtx = caveCanvas.getContext('2d');
+const caveFloats = [];
 
-function resizeLotus() {
-  const s = lotus.clientWidth || 260;
-  lotus.width = s * devicePixelRatio;
-  lotus.height = s * devicePixelRatio;
-  lotusCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+function resizeCave() {
+  caveCanvas.width = caveCanvas.clientWidth * devicePixelRatio;
+  caveCanvas.height = caveCanvas.clientHeight * devicePixelRatio;
+  caveCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
 }
-resizeLotus();
-window.addEventListener('resize', resizeLotus);
+window.addEventListener('resize', () => { resizeCave(); resizeForge(); });
 
-(function lotusLoop(t) {
-  if (screens.meditate.classList.contains('active')) {
-    const s = lotus.clientWidth;
-    lotusCtx.clearRect(0, 0, s, s);
-    drawLotus(lotusCtx, s / 2, s / 2, s * 0.34, t / 1000);
+// Станции прокачки: меч (урон), лотос (ци за тап), сердце (HP)
+const STATIONS = [
+  { id: 'sword',  xRel: 0.18, icon: 'sword', label: 'Сила Меча',      desc: '+4 урона',   lvl: () => state.upgrades.sword,  cost: () => ECON.swordCost() },
+  { id: 'breath', xRel: 0.5,  icon: 'lotus', label: 'Дыхание Лотоса', desc: '+1 ци за тап', lvl: () => state.upgrades.breath, cost: () => ECON.breathCost() },
+  { id: 'body',   xRel: 0.82, icon: 'heart', label: 'Нефритовое Тело', desc: '+25 HP',     lvl: () => state.upgrades.body,   cost: () => ECON.bodyCost() },
+];
+
+function caveLayout() {
+  const w = caveCanvas.clientWidth, h = caveCanvas.clientHeight;
+  return {
+    w, h,
+    medX: w / 2, medY: h * 0.42, medR: Math.min(w, h) * 0.14,
+    stations: STATIONS.map(s => ({
+      ...s,
+      x: s.xRel * w,
+      y: h * 0.8,
+      r: Math.min(w, h) * 0.11,
+    })),
+  };
+}
+
+function renderCave(t) {
+  const L = caveLayout();
+  const fallen = state.path === 'fallen';
+  const trim = fallen ? '#e05656' : '#e8c15a';
+  const ctx = caveCtx;
+
+  drawCaveBg(ctx, L.w, L.h, t, fallen);
+
+  // Подсказка
+  ctx.fillStyle = 'rgba(232,228,240,.55)';
+  ctx.font = '14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Коснитесь культиватора — соберите ци', L.w / 2, L.h * 0.14);
+
+  // Медитирующий персонаж
+  drawMeditator(ctx, L.medX, L.medY, L.medR, t, fallen);
+
+  // Станции прокачки
+  L.stations.forEach(s => {
+    const affordable = state.qi >= s.cost();
+    drawPedestal(ctx, s.x, s.y, s.r, affordable, trim);
+    const iconY = s.y - s.r * 0.5;
+    if (s.icon === 'sword') drawSwordIcon(ctx, s.x, iconY, s.r * 0.6, trim);
+    if (s.icon === 'lotus') drawLotus(ctx, s.x, iconY, s.r * 0.45, t);
+    if (s.icon === 'heart') drawHeartIcon(ctx, s.x, iconY, s.r * 0.5, trim);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#e8e4f0';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText(`${s.label} · ${s.lvl()}`, s.x, s.y + s.r * 0.95);
+    ctx.fillStyle = affordable ? trim : 'rgba(143,137,163,.7)';
+    ctx.font = '13px sans-serif';
+    ctx.fillText(`${s.desc} — ${fmt(s.cost())} ✨`, s.x, s.y + s.r * 1.25);
+  });
+
+  // Всплывающие числа
+  for (let i = caveFloats.length - 1; i >= 0; i--) {
+    const f = caveFloats[i];
+    f.y -= 1.2;
+    f.life -= 0.016;
+    if (f.life <= 0) { caveFloats.splice(i, 1); continue; }
+    ctx.globalAlpha = Math.min(1, f.life * 2);
+    ctx.fillStyle = f.color;
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillText(f.text, f.x, f.y);
+    ctx.globalAlpha = 1;
   }
-  requestAnimationFrame(lotusLoop);
+}
+
+function onCaveTap(e) {
+  const rect = caveCanvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left);
+  const y = (e.clientY - rect.top);
+  const L = caveLayout();
+  const trim = state.path === 'fallen' ? '#e05656' : '#e8c15a';
+
+  // Тап по медитирующему — ци
+  const dMed = Math.hypot(x - L.medX, y - L.medY);
+  if (dMed < L.medR * 1.6) {
+    const gain = ECON.tapQi();
+    state.qi += gain;
+    document.getElementById('cave-qi').textContent = fmt(state.qi);
+    caveFloats.push({ x: x + (Math.random() * 30 - 15), y: y - 20, text: '+' + gain + ' ✨', color: trim, life: 1 });
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+    SFX.tap();
+    return;
+  }
+
+  // Тап по станции — покупка
+  const st = L.stations.find(s => Math.hypot(x - s.x, y - (s.y - s.r * 0.3)) < s.r * 1.4);
+  if (st) {
+    const cost = st.cost();
+    if (state.qi < cost) {
+      toast(`Не хватает ци: нужно ${fmt(cost)} ✨`);
+      return;
+    }
+    state.qi -= cost;
+    state.upgrades[st.id]++;
+    saveState();
+    document.getElementById('cave-qi').textContent = fmt(state.qi);
+    caveFloats.push({ x: st.x, y: st.y - st.r * 1.3, text: `${st.label} ${st.lvl()}!`, color: '#60ff80', life: 1.2 });
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    SFX.heal();
+  }
+}
+caveCanvas.addEventListener('pointerdown', onCaveTap);
+
+/* ================= ПЕЧЬ КРАФТА ================= */
+const forgeCanvas = document.getElementById('forge-canvas');
+const forgeCtx = forgeCanvas.getContext('2d');
+
+function resizeForge() {
+  forgeCanvas.width = forgeCanvas.clientWidth * devicePixelRatio;
+  forgeCanvas.height = forgeCanvas.clientHeight * devicePixelRatio;
+  forgeCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+
+function renderForge(t) {
+  const w = forgeCanvas.clientWidth, h = forgeCanvas.clientHeight;
+  const g = forgeCtx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, '#0d0b14');
+  g.addColorStop(1, '#1a1210');
+  forgeCtx.fillStyle = g;
+  forgeCtx.fillRect(0, 0, w, h);
+  drawFurnace(forgeCtx, w / 2, h * 0.42, Math.min(w, h) * 0.32, t);
+}
+
+// Общий цикл сцен: пещера и печь анимируются, только когда открыты
+(function scenesLoop(tms) {
+  const t = tms / 1000;
+  if (screens.cave.classList.contains('active')) renderCave(t);
+  if (screens.forge.classList.contains('active')) renderForge(t);
+  requestAnimationFrame(scenesLoop);
 })(0);
 
-function onTap(e) {
-  const gain = ECON.tapQi();
-  state.qi += gain;
-  document.getElementById('med-qi').textContent = fmt(state.qi);
-
-  lotus.classList.add('pressed');
-  setTimeout(() => lotus.classList.remove('pressed'), 70);
-
-  const rect = lotusArea.getBoundingClientRect();
-  const x = (e.clientX || (e.touches && e.touches[0].clientX) || rect.width / 2) - rect.left;
-  const y = (e.clientY || (e.touches && e.touches[0].clientY) || rect.height / 2) - rect.top;
-  const f = document.createElement('div');
-  f.className = 'float-qi';
-  f.textContent = '+' + gain;
-  f.style.left = (x - 10 + (Math.random() * 30 - 15)) + 'px';
-  f.style.top = (y - 20) + 'px';
-  lotusArea.appendChild(f);
-  setTimeout(() => f.remove(), 800);
-
-  if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
-  SFX.tap();
-}
-
-lotusArea.addEventListener('pointerdown', onTap);
 setInterval(saveState, 5000);
 
 /* ================= РОГАЛИК-УСИЛЕНИЯ ================= */
@@ -1238,7 +1324,8 @@ function boot() {
   if (dbg) startRun(Math.min(FLOORS.length, parseInt(dbg[1], 10)) - 1);
   if (location.hash === '#choice') showScreen('choice');
   if (location.hash === '#fallen') { state.path = 'fallen'; applyTheme(); startRun(0); }
-  if (location.hash === '#meditate') document.getElementById('btn-meditate').click();
+  if (location.hash === '#meditate' || location.hash === '#cave') document.getElementById('btn-cave').click();
+  if (location.hash === '#forge') document.getElementById('btn-forge').click();
   if (location.hash === '#rebirth') { startRun(2); endRun(true); }
   const dbgBoss = location.hash.match(/^#boss(\d)$/); // #boss1..#boss3
   if (dbgBoss) {
