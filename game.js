@@ -1,5 +1,39 @@
 'use strict';
 
+/* ================= ДИАГНОСТИКА И ТОСТЫ ================= */
+// Вместо alert(): лёгкий тост + ловушка ошибок для отладки в WebView
+function toast(msg) {
+  const t = document.createElement('div');
+  t.style.cssText =
+    'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);' +
+    'background:#241e33;color:#e8c15a;border:1px solid #9a7f3a;border-radius:12px;' +
+    'padding:12px 18px;font-size:14px;max-width:85%;text-align:center;' +
+    'white-space:pre-line;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.5);';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .4s'; }, 2600);
+  setTimeout(() => t.remove(), 3000);
+}
+
+window.addEventListener('error', e => {
+  toast('⚠️ Ошибка: ' + e.message + '\n(' + (e.filename || '').split('/').pop() + ':' + e.lineno + ')');
+});
+
+// Полифилл для старых WebView
+if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    this.beginPath();
+    this.moveTo(x + r, y);
+    this.arcTo(x + w, y, x + w, y + h, r);
+    this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r);
+    this.arcTo(x, y, x + w, y, r);
+    this.closePath();
+    return this;
+  };
+}
+
 /* ================= TELEGRAM ================= */
 const tg = window.Telegram && window.Telegram.WebApp;
 if (tg) {
@@ -52,7 +86,7 @@ const state = loadState();
   const gained = Math.floor((capped / 60) * perMin * (1 + 0.10 * state.rebirths));
   if (gained > 0 && awaySec > 120) {
     state.qi += gained;
-    setTimeout(() => alert(`Пока вы медитировали в реальном мире,\nкультивация принесла ${gained} ци ✨`), 300);
+    setTimeout(() => toast(`Пока вы медитировали в реальном мире,\nкультивация принесла ${gained} ци ✨`), 300);
   }
 
   // Ежедневный бонус за серию входов
@@ -64,7 +98,7 @@ const state = loadState();
     const bonus = 30 * state.dailyStreak * (1 + 0.10 * state.rebirths);
     const bonusQi = Math.floor(bonus);
     state.qi += bonusQi;
-    setTimeout(() => alert(`День ${state.dailyStreak} культивации подряд.\nНебеса даруют ${bonusQi} ци ✨`), 700);
+    setTimeout(() => toast(`День ${state.dailyStreak} культивации подряд.\nНебеса даруют ${bonusQi} ци ✨`), 700);
   }
   saveState();
 })();
