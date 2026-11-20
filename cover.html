@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<style>
+  html, body { margin: 0; padding: 0; overflow: hidden; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cover" width="640" height="360"></canvas>
+<script src="sprites.js"></script>
+<script>
+const canvas = document.getElementById('cover');
+const ctx = canvas.getContext('2d');
+const W = 640, H = 360;
+
+// Фон: раскол между Вознесением (слева, золото) и Падением (справа, багра)
+const left = ctx.createLinearGradient(0, 0, W * 0.55, 0);
+left.addColorStop(0, '#141b2e');
+left.addColorStop(1, '#0d0b14');
+ctx.fillStyle = left;
+ctx.fillRect(0, 0, W / 2, H);
+
+const right = ctx.createLinearGradient(W * 0.45, 0, W, 0);
+right.addColorStop(0, '#120a0e');
+right.addColorStop(1, '#2a0d12');
+ctx.fillStyle = right;
+ctx.fillRect(W / 2, 0, W / 2, H);
+
+// Трещина-разлом по центру
+ctx.save();
+ctx.strokeStyle = 'rgba(232,193,90,.55)';
+ctx.lineWidth = 2;
+ctx.shadowColor = '#e8c15a';
+ctx.shadowBlur = 18;
+ctx.beginPath();
+ctx.moveTo(W / 2, 30);
+ctx.lineTo(W / 2 - 14, 100);
+ctx.lineTo(W / 2 + 10, 170);
+ctx.lineTo(W / 2 - 8, 240);
+ctx.lineTo(W / 2 + 4, 330);
+ctx.stroke();
+ctx.restore();
+
+// Бамбук по краям
+drawBamboo(ctx, 30, H, 150, 0.35);
+drawBamboo(ctx, W - 30, H, 170, 0.3);
+drawBamboo(ctx, 90, H - 6, 110, 0.25);
+drawBamboo(ctx, W - 90, H - 4, 120, 0.22);
+
+// Праведный культиватор слева
+drawPlayer(ctx, 130, 235, 46, { path: { dmgColor: '#e8c15a' }, fallen: false });
+// Золотая аура
+ctx.beginPath();
+ctx.arc(130, 235, 58, 0, Math.PI * 2);
+ctx.strokeStyle = 'rgba(232,193,90,.4)';
+ctx.lineWidth = 3;
+ctx.stroke();
+
+// Падший культиватор справа (зеркально, мечом к центру)
+ctx.save();
+ctx.translate(W - 130, 235);
+ctx.scale(-1, 1);
+drawPlayer(ctx, 0, 0, 46, { path: { dmgColor: '#e05656' }, fallen: true });
+ctx.restore();
+ctx.beginPath();
+ctx.arc(W - 130, 235, 58, 0, Math.PI * 2);
+ctx.strokeStyle = 'rgba(224,86,86,.5)';
+ctx.lineWidth = 3;
+ctx.stroke();
+
+// Дух за праведным
+ctx.globalAlpha = 0.8;
+drawSpirit(ctx, 210, 280, 22, 0);
+// Бес за падшим
+drawImp(ctx, W - 210, 280, 22, 0);
+ctx.globalAlpha = 1;
+
+// Лотос в центре
+drawLotus(ctx, W / 2, 200, 52, 1.2);
+
+// Заголовок
+ctx.textAlign = 'center';
+ctx.shadowColor = 'rgba(232,193,90,.8)';
+ctx.shadowBlur = 24;
+ctx.fillStyle = '#e8c15a';
+ctx.font = 'bold 46px Georgia, serif';
+ctx.fillText('ПАДШИЙ ЛОТОС', W / 2, 72);
+ctx.shadowBlur = 0;
+
+// Подзаголовок
+ctx.fillStyle = 'rgba(232,228,240,.85)';
+ctx.font = '20px Georgia, serif';
+ctx.fillText('Выбери свою природу', W / 2, 106);
+
+// Метки путей
+ctx.font = 'bold 16px Georgia, serif';
+ctx.fillStyle = '#e8c15a';
+ctx.fillText('ВОЗНЕСТИСЬ', 130, 320);
+ctx.fillStyle = '#e05656';
+ctx.fillText('ПАДИ', W - 130, 320);
+</script>
+</body>
+</html>
