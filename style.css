@@ -92,6 +92,21 @@ html, body {
 .floor-btn.locked { background: var(--panel2); color: var(--text-dim); }
 .floor-btn .floor-sub { display: block; font-size: 12px; font-weight: 400; opacity: .8; margin-top: 2px; }
 #craft-panel { margin-bottom: 16px; }
+#achv-panel { margin-bottom: 16px; }
+.sound-toggle { cursor: pointer; user-select: none; }
+.achv {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 4px;
+  border-top: 1px solid #2a2240;
+  opacity: .45;
+}
+.achv.got { opacity: 1; }
+.achv-icon { font-size: 22px; width: 30px; text-align: center; }
+.achv-info { display: flex; flex-direction: column; }
+.achv-info b { font-size: 14px; color: var(--gold); }
+.achv-info i { font-size: 12px; color: var(--text-dim); font-style: normal; }
 
 .btn {
   border: none;

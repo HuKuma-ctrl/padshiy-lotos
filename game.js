@@ -19,6 +19,48 @@ window.addEventListener('error', e => {
   toast('⚠️ Ошибка: ' + e.message + '\n(' + (e.filename || '').split('/').pop() + ':' + e.lineno + ')');
 });
 
+/* ================= ЗВУК (WebAudio, синтез) ================= */
+const SFX = {
+  ctx: null,
+  ensure() {
+    if (typeof AudioContext === 'undefined' && typeof webkitAudioContext === 'undefined') return false;
+    if (!this.ctx) {
+      try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return false; }
+    }
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    return true;
+  },
+  play(freq, dur, type, vol, slide) {
+    if (typeof state !== 'undefined' && state && state.sound === false) return;
+    if (!this.ensure()) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    if (slide) osc.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
+    gain.gain.setValueAtTime(vol || 0.05, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(gain).connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + dur);
+  },
+  tap()      { this.play(880, 0.05, 'sine', 0.025); },
+  hit()      { this.play(200, 0.06, 'square', 0.03, -80); },
+  crit()     { this.play(700, 0.12, 'sawtooth', 0.045, -400); },
+  skill()    { this.play(440, 0.18, 'triangle', 0.05, 260); },
+  kill()     { this.play(320, 0.12, 'triangle', 0.04, -160); },
+  warn()     { this.play(1100, 0.12, 'square', 0.03); },
+  heal()     { this.play(520, 0.15, 'sine', 0.035, 180); },
+  victory()  { [440, 554, 659, 880].forEach((f, i) => setTimeout(() => this.play(f, 0.22, 'triangle', 0.05), i * 120)); },
+  defeat()   { [330, 262, 196, 131].forEach((f, i) => setTimeout(() => this.play(f, 0.28, 'sawtooth', 0.04), i * 160)); },
+};
+// AudioContext разблокируется первым касанием
+document.addEventListener('pointerdown', function unlockAudio() {
+  SFX.ensure();
+  document.removeEventListener('pointerdown', unlockAudio);
+});
+
 // Полифилл для старых WebView
 if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
   CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
@@ -56,6 +98,8 @@ function defaultState() {
     rebirths: 0,
     dailyStreak: 0,
     lastDaily: '',
+    achievements: {},
+    sound: true,
     lastSeen: Date.now(),
     victories: 0,
   };
@@ -151,6 +195,43 @@ const TALISMANS = [
 
 function talismanCost(lvl) { return 20 * Math.pow(2, lvl); }
 
+/* ================= ДОСТИЖЕНИЯ ================= */
+const ACHIEVEMENTS = [
+  { id: 'path',     icon: '🪞', name: 'Пробуждение',       desc: 'Выберите свой путь' },
+  { id: 'tengu',    icon: '👺', name: 'Сердце Леса',       desc: 'Победите Тенгу' },
+  { id: 'vampire',  icon: '🧛', name: 'Суд над Предателем', desc: 'Победите Вампира' },
+  { id: 'dragon',   icon: '🐉', name: 'Укротитель Бездны',  desc: 'Победите Дракона' },
+  { id: 'archon',   icon: '⚜️', name: 'Падение Небес',      desc: 'Победите Архонта' },
+  { id: 'reborn',   icon: '🌀', name: 'Новый Цикл',         desc: 'Совершите перерождение' },
+  { id: 'rich',     icon: '💰', name: 'Хранитель Ци',       desc: 'Накопите 10 000 ци' },
+  { id: 'deaths',   icon: '💀', name: 'Боль — Учитель',     desc: 'Падите 5 раз' },
+  { id: 'talisman', icon: '☯️', name: 'Мастер Печатей',     desc: 'Поднимите талисман до 3 уровня' },
+  { id: 'share',    icon: '📣', name: 'Глас Секты',         desc: 'Поделитесь карточкой' },
+];
+
+function unlockAchievement(id) {
+  if (state.achievements[id]) return;
+  state.achievements[id] = true;
+  state.ash += 20;
+  const a = ACHIEVEMENTS.find(x => x.id === id);
+  toast(`${a.icon} Достижение: «${a.name}»\n+20 пепла 🔥`);
+  saveState();
+}
+
+function renderAchievements() {
+  const wrap = document.getElementById('achv-list');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  ACHIEVEMENTS.forEach(a => {
+    const got = !!state.achievements[a.id];
+    const row = document.createElement('div');
+    row.className = 'achv' + (got ? ' got' : '');
+    row.innerHTML = `<span class="achv-icon">${got ? a.icon : '🔒'}</span>` +
+      `<span class="achv-info"><b>${a.name}</b><i>${a.desc}</i></span>`;
+    wrap.appendChild(row);
+  });
+}
+
 /* ================= ПУТИ ================= */
 const PATHS = {
   righteous: {
@@ -189,6 +270,7 @@ function choosePath(p) {
   saveState();
   applyTheme();
   refreshHub();
+  unlockAchievement('path');
   showShareCard();
 }
 
@@ -229,6 +311,7 @@ document.getElementById('btn-share-close').onclick = () => {
 document.getElementById('btn-share-tg').onclick = () => {
   const url = 'https://t.me/share/url?url=' + encodeURIComponent(GAME_LINK) +
               '&text=' + encodeURIComponent(shareText());
+  unlockAchievement('share');
   if (tg && tg.openLink) tg.openLink(url);
   else window.open(url, '_blank');
   if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
@@ -257,6 +340,15 @@ function refreshHub() {
   document.getElementById('hub-legacy').textContent = '+' + Math.round((ECON.legacyMult() - 1) * 100) + '%';
   document.getElementById('hub-rebirths').textContent = state.rebirths;
 
+  const snd = document.getElementById('hub-sound');
+  snd.textContent = state.sound ? 'Вкл' : 'Выкл';
+  snd.onclick = () => {
+    state.sound = !state.sound;
+    snd.textContent = state.sound ? 'Вкл' : 'Выкл';
+    saveState();
+    if (state.sound) SFX.heal();
+  };
+
   document.getElementById('lvl-breath').textContent = state.upgrades.breath;
   document.getElementById('lvl-sword').textContent = state.upgrades.sword;
   document.getElementById('lvl-body').textContent = state.upgrades.body;
@@ -271,6 +363,11 @@ function refreshHub() {
 
   renderTalismans();
   renderFloorButtons();
+  renderAchievements();
+
+  // мягкие проверки достижений по состоянию
+  if (state.qi >= 10000) unlockAchievement('rich');
+  if (Object.values(state.talismans).some(l => l >= 3)) unlockAchievement('talisman');
 }
 
 function buyUpgrade(kind) {
@@ -381,6 +478,7 @@ function onTap(e) {
   setTimeout(() => f.remove(), 800);
 
   if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+  SFX.tap();
 }
 
 lotusArea.addEventListener('pointerdown', onTap);
@@ -413,7 +511,10 @@ const ENEMY_TYPES = {
   // Этаж 3 — Пещеры Бездны
   imp:     { emoji: '👿', hp: 150,  dmg: 13, atkCd: 1.3, speed: 68, radius: 22, qi: 20,  ash: 1 },
   demon:   { emoji: '😈', hp: 480,  dmg: 22, atkCd: 1.8, speed: 48, radius: 30, qi: 55,  ash: 3 },
-  dragon:  { emoji: '🐉', hp: 2400, dmg: 32, atkCd: 2.4, speed: 38, radius: 46, qi: 260, ash: 20, isBoss: true },
+  // Этаж 4 — Небесная Тюрьма
+  guard:   { emoji: '🗿', hp: 320,  dmg: 20, atkCd: 1.5, speed: 52, radius: 26, qi: 40,  ash: 2 },
+  seraph:  { emoji: '👁️', hp: 950,  dmg: 30, atkCd: 1.7, speed: 46, radius: 32, qi: 110, ash: 4 },
+  archon:  { emoji: '⚜️', hp: 5200, dmg: 45, atkCd: 2.0, speed: 40, radius: 48, qi: 650, ash: 40, isBoss: true },
 };
 
 const FLOORS = [
@@ -439,6 +540,14 @@ const FLOORS = [
       { name: 'Комната 1 — Спуск во Мглу',  spawns: ['imp', 'imp', 'imp', 'imp'] },
       { name: 'Комната 2 — Купол Страданий', spawns: ['imp', 'imp', 'demon', 'imp'] },
       { name: 'Комната 3 — Сердце Бездны',  spawns: ['dragon', 'imp', 'imp'] },
+    ],
+  },
+  {
+    name: 'Небесная Тюрьма', sub: 'Суд над падшими',
+    rooms: [
+      { name: 'Комната 1 — Цепи Света',      spawns: ['guard', 'guard', 'guard'] },
+      { name: 'Комната 2 — Хор Безгласных',  spawns: ['guard', 'seraph', 'guard'] },
+      { name: 'Комната 3 — Престол Архонта', spawns: ['archon', 'guard', 'guard'] },
     ],
   },
 ];
@@ -485,6 +594,7 @@ const BOSS_AI = {
     if (e.specialTimer <= 0) {
       e.specialTimer = 7;
       b.telegraphs.push({ t: 1.5, dmg: 20, label: '⚠️ ВЗМАХ ТЕНГУ' });
+      SFX.warn();
     }
   },
 
@@ -536,6 +646,30 @@ const BOSS_AI = {
       if (e.specialTimer <= 0) {
         e.specialTimer = 4.5;
         b.telegraphs.push({ t: 1.2, dmg: 16, label: '⚠️ ДЫХАНИЕ ДРАКОНА' });
+        SFX.warn();
+      }
+    }
+  },
+  // Архонт: Суд Небес (телеграф), в финале — стражи и ускорение
+  archon(e, dt, b) {
+    if (!e.phase) { e.phase = 1; e.specialTimer = 5; }
+    if (e.phase === 1 && e.hp < e.maxHP * 0.65) {
+      e.phase = 2;
+      announce(e, 'Архонт возносит меч Суда!');
+    }
+    if (e.phase === 2 && e.hp < e.maxHP * 0.3) {
+      e.phase = 3;
+      e.atkCd *= 0.7;
+      e.speed *= 1.3;
+      summonAdds(b, 'guard', 2);
+      announce(e, 'Небеса не признают поражения!');
+    }
+    if (e.phase >= 2) {
+      e.specialTimer -= dt;
+      if (e.specialTimer <= 0) {
+        e.specialTimer = 5;
+        b.telegraphs.push({ t: 1.3, dmg: 25, label: '⚠️ СУД НЕБЕС' });
+        SFX.warn();
       }
     }
   },
@@ -659,6 +793,7 @@ function dealDamage(enemy, amount, isCrit) {
   enemy.hitFlash = 0.12;
   addDmgNumber(enemy.x, enemy.y - enemy.radius - 6, Math.floor(amount), isCrit ? path.critColor : '#fff');
   addParticles(enemy.x, enemy.y, isCrit ? path.critColor : path.dmgColor, isCrit ? 10 : 5);
+  if (isCrit) SFX.crit(); else SFX.hit();
   const r = battle.run;
   if (r.lifesteal > 0) { r.heal(amount * r.lifesteal); updateHpBar(); }
 }
@@ -670,6 +805,7 @@ function killEnemy(enemy) {
   battle.runAsh += enemy.ash;
   addParticles(enemy.x, enemy.y, '#fff', 14);
   addDmgNumber(enemy.x, enemy.y, '+' + enemy.qi + ' ✨', currentPath().dmgColor);
+  SFX.kill();
   // Безумие (демонический путь): +2% урона за убийство, макс +100%
   if (state.path === 'fallen' && r.madness < 50) {
     r.madness++;
@@ -706,6 +842,7 @@ function useSkillQ() {
     battle.enemies.forEach(e => { if (e.hp > 0) dealDamage(e, dmg, false); });
   }
   if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+  SFX.skill();
 }
 
 function useSkillW() {
@@ -1001,7 +1138,8 @@ function endRun(victory) {
 
   if (victory) {
     const floorNum = b.floorIndex + 1;
-    const isFinal = b.floorIndex === FLOORS.length - 1;
+    const offerRebirth = b.floorIndex >= 2; // с победы над драконом и дальше
+    SFX.victory();
     const qiBonus = 100 * floorNum;
     const ashBonus = 10 * floorNum;
     const runQi = Math.floor(b.runQi * ECON.rebirthQiMult());
@@ -1010,14 +1148,16 @@ function endRun(victory) {
     state.ash += b.runAsh + ashBonus;
     const unlockedNew = floorNum === state.maxFloor && floorNum < FLOORS.length;
     if (unlockedNew) state.maxFloor++;
+    const bossAchv = ['tengu', 'vampire', 'dragon', 'archon'][b.floorIndex];
+    if (bossAchv) unlockAchievement(bossAchv);
 
-    if (isFinal) {
+    if (offerRebirth) {
       battle.rebirthOffer = true;
       btnOk.textContent = '🌀 Переродиться';
       btnAlt.style.display = '';
-      title.textContent = '🐉 Дракон Бездны повержен!';
+      title.textContent = '🏆 Цикл завершён!';
       text.textContent =
-        `Цикл завершён. Зеркало Нирваны предлагает\nраствориться в Дао и начать заново.\n\n` +
+        `${b.floor.name} очищен. Зеркало Нирваны\nпредлагает раствориться в Дао и начать заново.\n\n` +
         `Перерождение: прогресс сгорит, но\n` +
         `• +15% к урону навсегда (сейчас +${Math.round((ECON.rebirthDmgMult() - 1) * 100)}%)\n` +
         `• +10% к добыче ци навсегда\n` +
@@ -1034,7 +1174,9 @@ function endRun(victory) {
     }
   } else {
     state.deaths++;
+    SFX.defeat();
     state.ash += b.runAsh + Math.floor(b.kills / 2);
+    if (state.deaths >= 5) unlockAchievement('deaths');
     title.textContent = '💀 Вы пали...';
     text.textContent =
       `${path.defeatLine}\n\n` +
@@ -1049,6 +1191,7 @@ function endRun(victory) {
 
 function doRebirth() {
   state.rebirths++;
+  unlockAchievement('reborn');
   state.qi = 0;
   state.ash = 0;
   state.upgrades = { breath: 0, sword: 0, body: 0 };

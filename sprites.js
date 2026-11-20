@@ -312,6 +312,100 @@ function drawDragon(ctx, x, y, r, flash) {
   spEyes(ctx, x - r * 0.3, y - r * 0.55, r * 0.22, r * 0.09, '#e0ff40');
 }
 
+/* ---------- Этаж 4: Небесная Тюрьма ---------- */
+
+function drawGuard(ctx, x, y, r, flash) {
+  // Каменный страж: золотая броня, светящееся ядро
+  spGlow(ctx, '#ffd060', 10);
+  ctx.fillStyle = spRadial(ctx, x, y, r, '#8a7a50', '#3a3020');
+  ctx.beginPath();
+  ctx.roundRect(x - r * 0.6, y - r * 0.7, r * 1.2, r * 1.6, r * 0.3);
+  ctx.fill();
+  spNoGlow(ctx);
+  // Шлем
+  ctx.fillStyle = '#c0a860';
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.45, y - r * 0.6);
+  ctx.lineTo(x, y - r * 1.1);
+  ctx.lineTo(x + r * 0.45, y - r * 0.6);
+  ctx.closePath(); ctx.fill();
+  // Ядро
+  spGlow(ctx, '#60c0ff', 12);
+  ctx.fillStyle = spRadial(ctx, x, y + r * 0.1, r * 0.25, '#d0f0ff', '#2080c0');
+  ctx.beginPath(); ctx.arc(x, y + r * 0.1, r * 0.22, 0, Math.PI * 2); ctx.fill();
+  spNoGlow(ctx);
+  spEyes(ctx, x, y - r * 0.45, r * 0.18, r * 0.07, '#ffe080');
+}
+
+function drawSeraph(ctx, x, y, r, flash) {
+  // Серафим: крылатое око
+  spGlow(ctx, '#fff0a0', 16);
+  // Крылья (три пары)
+  ctx.fillStyle = '#e8d890';
+  for (let i = 0; i < 3; i++) {
+    const off = (i - 1) * r * 0.35;
+    ctx.beginPath();
+    ctx.moveTo(x - r * 0.3, y + off * 0.3);
+    ctx.quadraticCurveTo(x - r * 1.3, y - r * 0.6 + off, x - r * 1.1, y + off * 0.5 + r * 0.15);
+    ctx.quadraticCurveTo(x - r * 0.6, y + off * 0.4, x - r * 0.3, y + off * 0.5);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + r * 0.3, y + off * 0.3);
+    ctx.quadraticCurveTo(x + r * 1.3, y - r * 0.6 + off, x + r * 1.1, y + off * 0.5 + r * 0.15);
+    ctx.quadraticCurveTo(x + r * 0.6, y + off * 0.4, x + r * 0.3, y + off * 0.5);
+    ctx.fill();
+  }
+  // Око
+  ctx.fillStyle = spRadial(ctx, x, y, r * 0.55, '#fff8d0', '#c0a040');
+  ctx.beginPath(); ctx.arc(x, y, r * 0.5, 0, Math.PI * 2); ctx.fill();
+  spNoGlow(ctx);
+  ctx.fillStyle = '#203050';
+  ctx.beginPath(); ctx.arc(x, y, r * 0.22, 0, Math.PI * 2); ctx.fill();
+  spGlow(ctx, '#80d0ff', 8);
+  ctx.fillStyle = '#80d0ff';
+  ctx.beginPath(); ctx.arc(x, y, r * 0.1, 0, Math.PI * 2); ctx.fill();
+  spNoGlow(ctx);
+}
+
+function drawArchon(ctx, x, y, r, flash) {
+  // Архонт: золотой голем с нимбом
+  spGlow(ctx, '#ffe080', 24);
+  // Нимб
+  ctx.strokeStyle = 'rgba(255,224,128,.9)';
+  ctx.lineWidth = r * 0.08;
+  ctx.beginPath();
+  ctx.ellipse(x, y - r * 1.05, r * 0.55, r * 0.18, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  // Тело
+  ctx.fillStyle = spRadial(ctx, x, y, r, '#a08848', '#403018');
+  ctx.beginPath();
+  ctx.roundRect(x - r * 0.65, y - r * 0.75, r * 1.3, r * 1.7, r * 0.35);
+  ctx.fill();
+  spNoGlow(ctx);
+  // Наплечники
+  ctx.fillStyle = '#d0b060';
+  ctx.beginPath(); ctx.arc(x - r * 0.7, y - r * 0.55, r * 0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + r * 0.7, y - r * 0.55, r * 0.3, 0, Math.PI * 2); ctx.fill();
+  // Шлем с вертикальным гребнем
+  ctx.fillStyle = '#c0a050';
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.4, y - r * 0.6);
+  ctx.lineTo(x, y - r * 1.25);
+  ctx.lineTo(x + r * 0.4, y - r * 0.6);
+  ctx.closePath(); ctx.fill();
+  // Гем в груди
+  spGlow(ctx, '#ff8040', 14);
+  ctx.fillStyle = '#ff8040';
+  ctx.beginPath();
+  ctx.moveTo(x, y - r * 0.1);
+  ctx.lineTo(x + r * 0.18, y + r * 0.15);
+  ctx.lineTo(x, y + r * 0.45);
+  ctx.lineTo(x - r * 0.18, y + r * 0.15);
+  ctx.closePath(); ctx.fill();
+  spNoGlow(ctx);
+  spEyes(ctx, x, y - r * 0.45, r * 0.18, r * 0.08, '#ff5030');
+}
+
 const ENEMY_DRAW = {
   spirit: drawSpirit,
   elite: drawElite,
@@ -322,6 +416,9 @@ const ENEMY_DRAW = {
   imp: drawImp,
   demon: drawDemon,
   dragon: drawDragon,
+  guard: drawGuard,
+  seraph: drawSeraph,
+  archon: drawArchon,
 };
 
 function drawEnemy(ctx, type, x, y, r, flash) {
