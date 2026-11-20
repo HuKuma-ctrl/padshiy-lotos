@@ -61,25 +61,49 @@ function defaultState() {
   };
 }
 
-function loadState() {
+function mergeState(loaded) {
+  const base = defaultState();
+  const merged = Object.assign(base, loaded);
+  // вложенные объекты — аккуратно, чтобы не потерять новые поля
+  merged.upgrades = Object.assign(defaultState().upgrades, loaded && loaded.upgrades);
+  merged.talismans = Object.assign(defaultState().talismans, loaded && loaded.talismans);
+  return merged;
+}
+
+// Облако Telegram (синхронизация между устройствами) + localStorage как запасной слой
+const Cloud = {
+  available: !!(tg && tg.CloudStorage && tg.initData),
+  load(cb) {
+    if (!this.available) return cb(null);
+    tg.CloudStorage.getItem(SAVE_KEY, (err, val) => {
+      if (err || !val) return cb(null);
+      try { cb(JSON.parse(val)); } catch (e) { cb(null); }
+    });
+  },
+  save(json) {
+    if (!this.available) return;
+    tg.CloudStorage.setItem(SAVE_KEY, json, () => {});
+  },
+};
+
+function loadLocal() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return defaultState();
-    return Object.assign(defaultState(), JSON.parse(raw));
-  } catch (e) {
-    return defaultState();
-  }
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
 }
 
 function saveState() {
   state.lastSeen = Date.now();
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {}
+  const json = JSON.stringify(state);
+  try { localStorage.setItem(SAVE_KEY, json); } catch (e) {}
+  Cloud.save(json);
 }
 
-const state = loadState();
+let state = defaultState();
 
-// Оффлайн-культивация: ци капает, пока игрока нет (до 6 часов)
-(function offlineGain() {
+// Оффлайн-культивация + ежедневный бонус (вызывается после загрузки сохранения)
+function applyLoginRewards() {
   const awaySec = (Date.now() - (state.lastSeen || Date.now())) / 1000;
   const capped = Math.min(awaySec, 6 * 3600);
   const perMin = 5 + state.upgrades.breath * 2; // ци в минуту оффлайн
@@ -95,13 +119,12 @@ const state = loadState();
     const yesterday = new Date(Date.now() - 864e5).toDateString();
     state.dailyStreak = (state.lastDaily === yesterday) ? state.dailyStreak + 1 : 1;
     state.lastDaily = today;
-    const bonus = 30 * state.dailyStreak * (1 + 0.10 * state.rebirths);
-    const bonusQi = Math.floor(bonus);
+    const bonusQi = Math.floor(30 * state.dailyStreak * (1 + 0.10 * state.rebirths));
     state.qi += bonusQi;
     setTimeout(() => toast(`День ${state.dailyStreak} культивации подряд.\nНебеса даруют ${bonusQi} ци ✨`), 700);
   }
   saveState();
-})();
+}
 
 /* ================= ЭКОНОМИКА ================= */
 const ECON = {
@@ -1059,24 +1082,41 @@ document.getElementById('btn-result-alt').onclick = () => {
 };
 
 /* ================= СТАРТ ================= */
-applyTheme();
-refreshHub();
-showScreen('hub');
-if (location.hash === '#share') { state.path = 'righteous'; applyTheme(); showShareCard(); } // отладка
-if (location.hash === '#sharefallen') { state.path = 'fallen'; applyTheme(); showShareCard(); } // отладка
-const dbg = location.hash.match(/^#battle(\d)$/); // отладка боевого экрана: #battle1..#battle3
-if (dbg) startRun(Math.min(FLOORS.length, parseInt(dbg[1], 10)) - 1);
-if (location.hash === '#choice') showScreen('choice'); // отладка
-if (location.hash === '#fallen') { state.path = 'fallen'; applyTheme(); startRun(0); } // отладка
-if (location.hash === '#meditate') document.getElementById('btn-meditate').click(); // отладка
-const dbgBoss = location.hash.match(/^#boss(\d)$/); // отладка боссов: #boss1..#boss3
-if (location.hash === '#rebirth') { startRun(2); endRun(true); } // отладка экрана перерождения
-if (dbgBoss) {
-  const fi = Math.min(FLOORS.length, parseInt(dbgBoss[1], 10)) - 1;
-  startRun(fi);
-  battle.roomIndex = battle.floor.rooms.length - 1;
-  spawnRoom(battle.roomIndex);
-  battle.enemies.forEach((e, i) => { e.x = 220 + i * 80; e.y = canvas.clientHeight / 2 + (i - 1) * 80; });
+function boot() {
+  applyLoginRewards();
+  applyTheme();
+  refreshHub();
+  showScreen('hub');
+
+  // Отладочные хуки (только для разработки)
+  if (location.hash === '#share') { state.path = 'righteous'; applyTheme(); showShareCard(); }
+  if (location.hash === '#sharefallen') { state.path = 'fallen'; applyTheme(); showShareCard(); }
+  const dbg = location.hash.match(/^#battle(\d)$/); // #battle1..#battle3
+  if (dbg) startRun(Math.min(FLOORS.length, parseInt(dbg[1], 10)) - 1);
+  if (location.hash === '#choice') showScreen('choice');
+  if (location.hash === '#fallen') { state.path = 'fallen'; applyTheme(); startRun(0); }
+  if (location.hash === '#meditate') document.getElementById('btn-meditate').click();
+  if (location.hash === '#rebirth') { startRun(2); endRun(true); }
+  const dbgBoss = location.hash.match(/^#boss(\d)$/); // #boss1..#boss3
+  if (dbgBoss) {
+    const fi = Math.min(FLOORS.length, parseInt(dbgBoss[1], 10)) - 1;
+    startRun(fi);
+    battle.roomIndex = battle.floor.rooms.length - 1;
+    spawnRoom(battle.roomIndex);
+    battle.enemies.forEach((e, i) => { e.x = 220 + i * 80; e.y = canvas.clientHeight / 2 + (i - 1) * 80; });
+  }
 }
+
+// Инициализация: берём более свежую копию — облако Telegram или локальную
+Cloud.load(cloudState => {
+  const local = loadLocal();
+  const cloudTime = (cloudState && cloudState.lastSeen) || 0;
+  const localTime = (local && local.lastSeen) || 0;
+  const best = cloudTime >= localTime ? cloudState : local;
+  if (best) state = mergeState(best);
+  saveState(); // сразу синхронизируем обе копии
+  boot();
+});
+
 window.addEventListener('beforeunload', saveState);
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(); });
