@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Падший Лотос</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===== ЭКРАН: БАЗА (ХАБ) ===== -->
+<div id="screen-hub" class="screen active">
+  <div class="hub-header">
+    <div class="game-title">🪷 Падший Лотос</div>
+    <div class="hub-subtitle" id="hub-subtitle">Юный культиватор клана Цинхэ</div>
+  </div>
+
+  <div class="stats-panel">
+    <div class="stat-row"><span>✨ Ци</span><b id="hub-qi">0</b></div>
+    <div class="stat-row"><span>🔥 Пепел</span><b id="hub-ash">0</b></div>
+    <div class="stat-row"><span>⚔️ Урон</span><b id="hub-dmg">0</b></div>
+    <div class="stat-row"><span>❤️ Здоровье</span><b id="hub-hp">0</b></div>
+    <div class="stat-row"><span>🌑 Наследие</span><b id="hub-legacy">+0%</b></div>
+    <div class="stat-row"><span>🌀 Перерождения</span><b id="hub-rebirths">0</b></div>
+  </div>
+
+  <div class="hub-buttons">
+    <button class="btn btn-gold" id="btn-meditate">🧘 Культивация</button>
+    <div id="floor-buttons"></div>
+    <button class="btn btn-share" id="btn-share">📣 Поделиться</button>
+  </div>
+
+  <!-- Виральная карточка -->
+  <div id="share-overlay" class="overlay hidden">
+    <div class="share-card" id="share-card">
+      <div class="share-icon" id="share-icon">🪷</div>
+      <div class="share-title" id="share-title">Я выбрал Вознесение</div>
+      <div class="share-stats" id="share-stats"></div>
+    </div>
+    <button class="btn btn-gold" id="btn-share-tg">Поделиться в Telegram</button>
+    <button class="btn btn-back" id="btn-share-close">Продолжить</button>
+  </div>
+
+  <div class="upgrades-panel" id="craft-panel">
+    <div class="panel-title">Крафт из пепла 🔥</div>
+    <div id="talisman-list"></div>
+  </div>
+
+  <div class="upgrades-panel">
+    <div class="panel-title">Прокачка</div>
+    <div class="upgrade" id="upg-breath">
+      <div class="upgrade-info">
+        <div class="upgrade-name">🌬️ Дыхание Лотоса <span class="lvl" id="lvl-breath">0</span></div>
+        <div class="upgrade-desc">+1 ци за тап</div>
+      </div>
+      <button class="btn btn-small" id="buy-breath">30</button>
+    </div>
+    <div class="upgrade" id="upg-sword">
+      <div class="upgrade-info">
+        <div class="upgrade-name">⚔️ Сила Меча <span class="lvl" id="lvl-sword">0</span></div>
+        <div class="upgrade-desc">+4 к урону</div>
+      </div>
+      <button class="btn btn-small" id="buy-sword">50</button>
+    </div>
+    <div class="upgrade" id="upg-body">
+      <div class="upgrade-info">
+        <div class="upgrade-name">💎 Нефритовое Тело <span class="lvl" id="lvl-body">0</span></div>
+        <div class="upgrade-desc">+25 к здоровью</div>
+      </div>
+      <button class="btn btn-small" id="buy-body">40</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ЭКРАН: МЕДИТАЦИЯ (КЛИКЕР) ===== -->
+<div id="screen-meditate" class="screen">
+  <div class="topbar">
+    <button class="btn btn-back" id="back-meditate">← Назад</button>
+    <div class="topbar-qi">✨ <b id="med-qi">0</b></div>
+  </div>
+  <div class="meditate-hint">Коснитесь лотоса. Соберите ци.</div>
+  <div id="lotus-area">
+    <canvas id="lotus-canvas"></canvas>
+  </div>
+  <div class="meditate-tap-info">за тап: <b id="med-per-tap">1</b> ци</div>
+</div>
+
+<!-- ===== ЭКРАН: БОЙ ===== -->
+<div id="screen-battle" class="screen">
+  <canvas id="battle-canvas"></canvas>
+  <div class="battle-ui">
+    <div class="battle-top">
+      <div id="battle-room-name">Комната 1</div>
+      <div class="hp-bar-wrap"><div id="player-hp-bar"></div></div>
+    </div>
+    <div class="battle-skills">
+      <button class="skill-btn" id="skill-q">
+        <span class="skill-icon">🪷</span>
+        <span class="skill-name">Тысяча Лотосов</span>
+        <span class="skill-cd" id="cd-q"></span>
+      </button>
+      <button class="skill-btn" id="skill-w">
+        <span class="skill-icon">🛡️</span>
+        <span class="skill-name">Стойка Небес</span>
+        <span class="skill-cd" id="cd-w"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Выбор усиления после комнаты -->
+  <div id="upgrade-overlay" class="overlay hidden">
+    <div class="overlay-title">Зеркало Нирваны дарует выбор</div>
+    <div id="upgrade-cards"></div>
+  </div>
+
+  <!-- Результат забега -->
+  <div id="result-overlay" class="overlay hidden">
+    <div class="overlay-title" id="result-title">Победа</div>
+    <div class="overlay-text" id="result-text"></div>
+    <button class="btn btn-gold" id="btn-result-ok">Вернуться на базу</button>
+    <button class="btn btn-back" id="btn-result-alt" style="display:none">Остаться в этом цикле</button>
+  </div>
+</div>
+
+<!-- ===== ЭКРАН: ВЫБОР ПУТИ ===== -->
+<div id="screen-choice" class="screen">
+  <div class="choice-header">
+    <div class="choice-mirror">🪞</div>
+    <div class="choice-title">Зеркало Нирваны</div>
+    <div class="choice-text">Ты умер. Но горечь твоя слишком велика для забвения.
+Внутри тебя с рождения спят две природы.
+Зеркало даёт второй шанс — выбери, какую часть себя ты усилишь.</div>
+  </div>
+  <div class="choice-cards">
+    <button class="choice-card choice-righteous" id="choose-righteous">
+      <div class="choice-icon">🪷</div>
+      <div class="choice-name">Вознестись</div>
+      <div class="choice-desc">Чистое сердце, небесная кара.
+Стойкость, исцеление и праведный гнев против нечисти.</div>
+    </button>
+    <button class="choice-card choice-fallen" id="choose-fallen">
+      <div class="choice-icon">🩸</div>
+      <div class="choice-name">Пасть</div>
+      <div class="choice-desc">Боль — топливо. Проклятие становится силой.
+Вампиризм, безумие и запретные техники.</div>
+    </button>
+  </div>
+  <div class="choice-warning">Выбор необратим для этого жизненного цикла</div>
+</div>
+
+<script src="sprites.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
