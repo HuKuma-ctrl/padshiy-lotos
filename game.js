@@ -258,11 +258,11 @@ const PATHS = {
 
 function currentPath() { return PATHS[state.path] || PATHS.righteous; }
 
+let HUB_SUBTITLE = 'Юный культиватор клана Цинхэ';
+
 function applyTheme() {
   document.body.dataset.path = state.path || '';
-  document.getElementById('hub-subtitle').textContent = state.path
-    ? currentPath().subtitle
-    : 'Юный культиватор клана Цинхэ';
+  HUB_SUBTITLE = state.path ? currentPath().subtitle : 'Юный культиватор клана Цинхэ';
 }
 
 function choosePath(p) {
@@ -342,10 +342,10 @@ function refreshHub() {
   document.getElementById('hub-rebirths').textContent = state.rebirths;
 
   const snd = document.getElementById('hub-sound');
-  snd.textContent = state.sound ? 'Вкл' : 'Выкл';
+  snd.textContent = state.sound ? '🔊' : '🔇';
   snd.onclick = () => {
     state.sound = !state.sound;
-    snd.textContent = state.sound ? 'Вкл' : 'Выкл';
+    snd.textContent = state.sound ? '🔊' : '🔇';
     saveState();
     if (state.sound) SFX.heal();
   };
@@ -406,19 +406,125 @@ function renderFloorButtons() {
   });
 }
 
-document.getElementById('btn-cave').onclick = () => {
+function openCave() {
   showScreen('cave');
   resizeCave();
   document.getElementById('cave-qi').textContent = fmt(state.qi);
-};
-document.getElementById('back-cave').onclick = () => { refreshHub(); showScreen('hub'); };
-document.getElementById('btn-forge').onclick = () => {
+}
+function openForge() {
   showScreen('forge');
   resizeForge();
   document.getElementById('forge-ash').textContent = fmt(state.ash);
   renderTalismans();
-};
+}
+document.getElementById('back-cave').onclick = () => { refreshHub(); showScreen('hub'); };
 document.getElementById('back-forge').onclick = () => { refreshHub(); showScreen('hub'); };
+document.getElementById('tower-close').onclick = () => {
+  document.getElementById('tower-overlay').classList.add('hidden');
+};
+
+/* ================= ХАБ: сцена деревни ================= */
+const hubCanvas = document.getElementById('hub-canvas');
+const hubCtx = hubCanvas.getContext('2d');
+
+let hubH = 300; // реальная высота холста в CSS-пикселях
+function resizeHub() {
+  // явная высота: 44% окна, чтобы не зависеть от quirks WebView
+  hubH = Math.round(window.innerHeight * 0.44);
+  hubCanvas.style.height = hubH + 'px';
+  hubCanvas.width = hubCanvas.clientWidth * devicePixelRatio;
+  hubCanvas.height = hubH * devicePixelRatio;
+  hubCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+window.addEventListener('resize', resizeHub);
+
+function hubLayout() {
+  const w = hubCanvas.clientWidth, h = hubH;
+  const u = Math.min(w, h);
+  return {
+    w, h, u,
+    cave:   { x: w * 0.5,  y: h * 0.47, r: u * 0.17, label: 'Пещера' },
+    forge:  { x: w * 0.22, y: h * 0.86, r: u * 0.15, label: 'Печь' },
+    tower:  { x: w * 0.78, y: h * 0.93, r: u * 0.24, label: 'Башня' },
+  };
+}
+
+function renderHub(t) {
+  const L = hubLayout();
+  const ctx = hubCtx;
+  const fallen = state.path === 'fallen';
+
+  // небо
+  const sky = ctx.createLinearGradient(0, 0, 0, L.h);
+  if (fallen) {
+    sky.addColorStop(0, '#1a0a10');
+    sky.addColorStop(0.7, '#241016');
+    sky.addColorStop(1, '#160a0c');
+  } else {
+    sky.addColorStop(0, '#0d0b14');
+    sky.addColorStop(0.7, '#161a2e');
+    sky.addColorStop(1, '#101622');
+  }
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, L.w, L.h);
+
+  // луна
+  spGlow(ctx, fallen ? '#e05656' : '#e8c15a', 18);
+  ctx.fillStyle = fallen ? '#e05656' : '#f0e0b0';
+  ctx.beginPath();
+  ctx.arc(L.w * 0.85, L.h * 0.15, L.u * 0.055, 0, Math.PI * 2);
+  ctx.fill();
+  spNoGlow(ctx);
+
+  // земля
+  const ground = ctx.createLinearGradient(0, L.h * 0.7, 0, L.h);
+  ground.addColorStop(0, fallen ? '#241216' : '#1a2030');
+  ground.addColorStop(1, fallen ? '#180a0c' : '#10141f');
+  ctx.fillStyle = ground;
+  ctx.fillRect(0, L.h * 0.72, L.w, L.h * 0.28);
+
+  // объекты
+  drawCaveEntrance(ctx, L.cave.x, L.cave.y + L.cave.r * 0.8, L.cave.r, t, fallen);
+  drawFurnace(ctx, L.forge.x, L.forge.y - L.forge.r * 0.7, L.forge.r * 0.75, t);
+  drawPagoda(ctx, L.tower.x, L.tower.y, L.tower.r, t);
+
+  // подписи
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 14px sans-serif';
+  [[L.cave, L.cave.y + L.cave.r * 1.35], [L.forge, L.forge.y + L.forge.r * 0.75], [L.tower, L.h * 0.97]].forEach(([o, ly]) => {
+    ctx.fillStyle = 'rgba(0,0,0,.5)';
+    const tw = ctx.measureText(o.label).width + 18;
+    ctx.beginPath();
+    ctx.roundRect(o.x - tw / 2, ly - 13, tw, 20, 10);
+    ctx.fill();
+    ctx.fillStyle = '#e8c15a';
+    ctx.fillText(o.label, o.x, ly + 1);
+  });
+
+  // заголовок
+  ctx.fillStyle = '#e8c15a';
+  ctx.font = 'bold 20px Georgia, serif';
+  ctx.fillText('🪷 Падший Лотос', L.w / 2, L.h * 0.07);
+  ctx.fillStyle = 'rgba(143,137,163,.9)';
+  ctx.font = '12px sans-serif';
+  ctx.fillText(HUB_SUBTITLE, L.w / 2, L.h * 0.13);
+}
+
+function onHubTap(e) {
+  const rect = hubCanvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const L = hubLayout();
+  const hit = (o) => Math.hypot(x - o.x, y - (o.y - o.r * 0.3)) < o.r * 1.35;
+
+  if (hit(L.cave)) { SFX.tap(); openCave(); return; }
+  if (hit(L.forge)) { SFX.tap(); openForge(); return; }
+  if (hit(L.tower)) {
+    SFX.tap();
+    document.getElementById('tower-overlay').classList.remove('hidden');
+  }
+}
+hubCanvas.addEventListener('pointerdown', onHubTap);
 
 /* ================= ПЕЩЕРА КУЛЬТИВАЦИИ ================= */
 const caveCanvas = document.getElementById('cave-canvas');
@@ -560,9 +666,10 @@ function renderForge(t) {
   drawFurnace(forgeCtx, w / 2, h * 0.42, Math.min(w, h) * 0.32, t);
 }
 
-// Общий цикл сцен: пещера и печь анимируются, только когда открыты
+// Общий цикл сцен: хаб, пещера и печь анимируются, только когда открыты
 (function scenesLoop(tms) {
   const t = tms / 1000;
+  if (screens.hub.classList.contains('active')) renderHub(t);
   if (screens.cave.classList.contains('active')) renderCave(t);
   if (screens.forge.classList.contains('active')) renderForge(t);
   requestAnimationFrame(scenesLoop);
@@ -597,6 +704,7 @@ const ENEMY_TYPES = {
   // Этаж 3 — Пещеры Бездны
   imp:     { emoji: '👿', hp: 150,  dmg: 13, atkCd: 1.3, speed: 68, radius: 22, qi: 20,  ash: 1 },
   demon:   { emoji: '😈', hp: 480,  dmg: 22, atkCd: 1.8, speed: 48, radius: 30, qi: 55,  ash: 3 },
+  dragon:  { emoji: '🐉', hp: 2400, dmg: 32, atkCd: 2.4, speed: 38, radius: 46, qi: 260, ash: 20, isBoss: true },
   // Этаж 4 — Небесная Тюрьма
   guard:   { emoji: '🗿', hp: 320,  dmg: 20, atkCd: 1.5, speed: 52, radius: 26, qi: 40,  ash: 2 },
   seraph:  { emoji: '👁️', hp: 950,  dmg: 30, atkCd: 1.7, speed: 46, radius: 32, qi: 110, ash: 4 },
@@ -1315,6 +1423,7 @@ function boot() {
   applyLoginRewards();
   applyTheme();
   refreshHub();
+  resizeHub();
   showScreen('hub');
 
   // Отладочные хуки (только для разработки)
@@ -1324,8 +1433,9 @@ function boot() {
   if (dbg) startRun(Math.min(FLOORS.length, parseInt(dbg[1], 10)) - 1);
   if (location.hash === '#choice') showScreen('choice');
   if (location.hash === '#fallen') { state.path = 'fallen'; applyTheme(); startRun(0); }
-  if (location.hash === '#meditate' || location.hash === '#cave') document.getElementById('btn-cave').click();
-  if (location.hash === '#forge') document.getElementById('btn-forge').click();
+  if (location.hash === '#meditate' || location.hash === '#cave') openCave();
+  if (location.hash === '#forge') openForge();
+  if (location.hash === '#tower') document.getElementById('tower-overlay').classList.remove('hidden');
   if (location.hash === '#rebirth') { startRun(2); endRun(true); }
   const dbgBoss = location.hash.match(/^#boss(\d)$/); // #boss1..#boss3
   if (dbgBoss) {

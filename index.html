@@ -11,26 +11,34 @@
 
 <!-- ===== ЭКРАН: БАЗА (ХАБ) ===== -->
 <div id="screen-hub" class="screen active">
-  <div class="hub-header">
-    <div class="game-title">🪷 Падший Лотос</div>
-    <div class="hub-subtitle" id="hub-subtitle">Юный культиватор клана Цинхэ</div>
+  <div class="hub-topbar">
+    <span class="hub-res">✨ <b id="hub-qi">0</b></span>
+    <span class="hub-res">🔥 <b id="hub-ash">0</b></span>
+    <span class="hub-res sound-toggle" id="hub-sound">🔊</span>
+    <span class="hub-res" id="btn-share">📣</span>
   </div>
 
-  <div class="stats-panel">
-    <div class="stat-row"><span>✨ Ци</span><b id="hub-qi">0</b></div>
-    <div class="stat-row"><span>🔥 Пепел</span><b id="hub-ash">0</b></div>
-    <div class="stat-row"><span>⚔️ Урон</span><b id="hub-dmg">0</b></div>
-    <div class="stat-row"><span>❤️ Здоровье</span><b id="hub-hp">0</b></div>
-    <div class="stat-row"><span>🌑 Наследие</span><b id="hub-legacy">+0%</b></div>
-    <div class="stat-row"><span>🌀 Перерождения</span><b id="hub-rebirths">0</b></div>
-    <div class="stat-row"><span>🔊 Звук</span><b id="hub-sound" class="sound-toggle">Вкл</b></div>
+  <canvas id="hub-canvas"></canvas>
+
+  <div class="hub-bottom">
+    <div class="stats-panel">
+      <div class="stat-row"><span>⚔️ Урон</span><b id="hub-dmg">0</b></div>
+      <div class="stat-row"><span>❤️ Здоровье</span><b id="hub-hp">0</b></div>
+      <div class="stat-row"><span>🌑 Наследие</span><b id="hub-legacy">+0%</b></div>
+      <div class="stat-row"><span>🌀 Перерождения</span><b id="hub-rebirths">0</b></div>
+    </div>
+
+    <div class="upgrades-panel" id="achv-panel">
+      <div class="panel-title">Достижения</div>
+      <div id="achv-list"></div>
+    </div>
   </div>
 
-  <div class="hub-buttons">
-    <button class="btn btn-gold" id="btn-cave">🕳️ Пещера Культивации</button>
-    <button class="btn btn-gold" id="btn-forge">🔥 Печь Крафта</button>
+  <!-- Башня: выбор этажа -->
+  <div id="tower-overlay" class="overlay hidden">
+    <div class="overlay-title">🗼 Башня Испытаний</div>
     <div id="floor-buttons"></div>
-    <button class="btn btn-share" id="btn-share">📣 Поделиться</button>
+    <button class="btn btn-back" id="tower-close">Закрыть</button>
   </div>
 
   <!-- Виральная карточка -->
@@ -42,11 +50,6 @@
     </div>
     <button class="btn btn-gold" id="btn-share-tg">Поделиться в Telegram</button>
     <button class="btn btn-back" id="btn-share-close">Продолжить</button>
-  </div>
-
-  <div class="upgrades-panel" id="achv-panel">
-    <div class="panel-title">Достижения</div>
-    <div id="achv-list"></div>
   </div>
 </div>
 

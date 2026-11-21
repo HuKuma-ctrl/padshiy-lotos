@@ -748,6 +748,108 @@ function drawFurnace(ctx, x, y, r, t) {
   ctx.beginPath(); ctx.ellipse(x, y + r * 1.1, r * 1.4, r * 0.35, 0, 0, Math.PI * 2); ctx.fill();
 }
 
+/* ---------- ХАБ: сцена деревни ---------- */
+
+// Пагода-башня (силуэт с золотой отделкой)
+function drawPagoda(ctx, x, y, r, t) {
+  const trim = '#e8c15a';
+  const body = '#241e33';
+  const roof = '#16121f';
+  // мягкое свечение окон
+  spGlow(ctx, trim, 8);
+
+  let baseY = y;
+  let w = r * 1.5;
+  const tiers = 4;
+  for (let i = 0; i < tiers; i++) {
+    const th = r * 0.55;
+    // ярус
+    ctx.fillStyle = body;
+    ctx.fillRect(x - w * 0.32, baseY - th, w * 0.64, th);
+    // окна
+    ctx.fillStyle = 'rgba(232,193,90,' + (0.5 + Math.sin(t * 2 + i) * 0.2) + ')';
+    ctx.fillRect(x - w * 0.1, baseY - th * 0.7, w * 0.2, th * 0.35);
+    // крыша
+    ctx.fillStyle = roof;
+    ctx.beginPath();
+    ctx.moveTo(x - w * 0.62, baseY - th);
+    ctx.quadraticCurveTo(x - w * 0.5, baseY - th - r * 0.22, x, baseY - th - r * 0.28);
+    ctx.quadraticCurveTo(x + w * 0.5, baseY - th - r * 0.22, x + w * 0.62, baseY - th);
+    // загнутые углы
+    ctx.lineTo(x + w * 0.55, baseY - th + r * 0.07);
+    ctx.lineTo(x - w * 0.55, baseY - th + r * 0.07);
+    ctx.closePath();
+    ctx.fill();
+    // золотая кромка крыши
+    ctx.strokeStyle = trim;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x - w * 0.62, baseY - th);
+    ctx.quadraticCurveTo(x - w * 0.5, baseY - th - r * 0.22, x, baseY - th - r * 0.28);
+    ctx.quadraticCurveTo(x + w * 0.5, baseY - th - r * 0.22, x + w * 0.62, baseY - th);
+    ctx.stroke();
+    baseY -= th + r * 0.16;
+    w *= 0.78;
+  }
+  // шпиль
+  ctx.strokeStyle = trim;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(x, baseY + r * 0.1);
+  ctx.lineTo(x, baseY - r * 0.45);
+  ctx.stroke();
+  ctx.fillStyle = trim;
+  ctx.beginPath(); ctx.arc(x, baseY - r * 0.48, r * 0.05, 0, Math.PI * 2); ctx.fill();
+  spNoGlow(ctx);
+}
+
+// Вход в пещеру: тёмная арка в скале, кристаллы, туман
+function drawCaveEntrance(ctx, x, y, r, t, fallen) {
+  const cryst = fallen ? '#e05656' : '#60c0ff';
+  // скала
+  ctx.fillStyle = '#232838';
+  ctx.beginPath();
+  ctx.moveTo(x - r * 1.3, y);
+  ctx.quadraticCurveTo(x - r * 1.1, y - r * 1.5, x, y - r * 1.6);
+  ctx.quadraticCurveTo(x + r * 1.1, y - r * 1.5, x + r * 1.3, y);
+  ctx.closePath();
+  ctx.fill();
+  // арка (тьма)
+  ctx.fillStyle = '#05070d';
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.55, y);
+  ctx.lineTo(x - r * 0.55, y - r * 0.55);
+  ctx.quadraticCurveTo(x, y - r * 1.25, x + r * 0.55, y - r * 0.55);
+  ctx.lineTo(x + r * 0.55, y);
+  ctx.closePath();
+  ctx.fill();
+  // свечение из глубины
+  const pulse = 0.5 + Math.sin(t * 1.8) * 0.25;
+  spGlow(ctx, cryst, 20 * pulse);
+  const g = ctx.createRadialGradient(x, y - r * 0.35, 0, x, y - r * 0.35, r * 0.6);
+  g.addColorStop(0, fallen ? 'rgba(224,86,86,.4)' : 'rgba(96,192,255,.35)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y - r * 0.35, r * 0.6, 0, Math.PI * 2); ctx.fill();
+  spNoGlow(ctx);
+  // кристаллы у входа
+  ctx.fillStyle = cryst;
+  [[-0.75, -0.1, 0.16], [0.8, -0.05, 0.2]].forEach(([dx, dy, cr]) => {
+    ctx.beginPath();
+    ctx.moveTo(x + dx * r, y + dy * r - cr * r);
+    ctx.lineTo(x + dx * r + cr * r * 0.55, y + dy * r);
+    ctx.lineTo(x + dx * r, y + dy * r + cr * r);
+    ctx.lineTo(x + dx * r - cr * r * 0.55, y + dy * r);
+    ctx.closePath();
+    ctx.fill();
+  });
+  // туман у основания
+  ctx.fillStyle = 'rgba(180,200,220,.08)';
+  ctx.beginPath();
+  ctx.ellipse(x, y, r * 1.2, r * 0.18, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 /* ---------- Декорации: бамбук ---------- */function drawBamboo(ctx, x, y, h, alpha) {
   ctx.save();
   ctx.globalAlpha = alpha;
