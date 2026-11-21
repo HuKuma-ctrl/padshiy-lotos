@@ -757,7 +757,7 @@ function summonAdds(b, type, n) {
       hp: t.hp, maxHP: t.hp,
       dmg: t.dmg, atkCd: t.atkCd, atkTimer: 1 + i * 0.5,
       speed: t.speed, radius: t.radius, qi: t.qi, ash: t.ash,
-      x: canvas.clientWidth + 40,
+      x: canvas.clientWidth * 0.85 + i * 60,
       y: canvas.clientHeight / 2 + (i - (n - 1) / 2) * 90,
       hitFlash: 0,
     };
@@ -954,7 +954,7 @@ function spawnRoom(idx) {
       speed: t.speed,
       radius: t.radius,
       qi: t.qi, ash: t.ash,
-      x: canvas.clientWidth + 60 + i * 90,
+      x: canvas.clientWidth * 0.78 + i * 70,
       y: canvas.clientHeight / 2 + (i - (cfg.spawns.length - 1) / 2) * 70,
       hitFlash: 0,
     };
