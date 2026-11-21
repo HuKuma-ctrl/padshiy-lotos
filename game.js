@@ -525,7 +525,7 @@ function onHubTap(e) {
     document.getElementById('tower-overlay').classList.remove('hidden');
   }
 }
-hubCanvas.addEventListener('pointerdown', onHubTap);
+hubCanvas.addEventListener('click', onHubTap); // click — после отпускания: жест не может задеть кнопки оверлея
 
 /* ================= ПЕЩЕРА КУЛЬТИВАЦИИ ================= */
 const caveCanvas = document.getElementById('cave-canvas');
