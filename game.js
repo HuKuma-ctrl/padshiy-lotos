@@ -511,6 +511,7 @@ function renderHub(t) {
 }
 
 function onHubTap(e) {
+  e.preventDefault(); // отменяем синтезированный click — иначе он активирует кнопку под пальцем
   const rect = hubCanvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
