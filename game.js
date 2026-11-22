@@ -92,6 +92,7 @@ function defaultState() {
     ash: 0,
     deaths: 0,
     path: null, // 'righteous' | 'fallen'
+    cls: null,  // 'sword' | 'mage'
     upgrades: { breath: 0, sword: 0, body: 0 },
     talismans: { seal: 0, ward: 0, feather: 0, tear: 0 },
     maxFloor: 1,
@@ -234,12 +235,10 @@ function renderAchievements() {
   });
 }
 
-/* ================= ПУТИ ================= */
+/* ================= ПУТИ И КЛАССЫ ================= */
 const PATHS = {
   righteous: {
-    subtitle: 'Путь Вознесения · Мечник Нирваны',
-    skillQ: { icon: '🪷', name: 'Тысяча Лотосов' },
-    skillW: { icon: '🛡️', name: 'Стойка Небес' },
+    name: 'Путь Вознесения',
     dmgColor: '#e8c15a',
     critColor: '#ffd700',
     aura: 'rgba(232,193,90,.35)',
@@ -247,9 +246,7 @@ const PATHS = {
     defeatLine: 'Но горечь ваша слишком велика для забвения.',
   },
   fallen: {
-    subtitle: 'Путь Падения · Клинок Кровавой Луны',
-    skillQ: { icon: '🩸', name: 'Когти Разрыва' },
-    skillW: { icon: '💉', name: 'Кровавый Пакт' },
+    name: 'Путь Падения',
     dmgColor: '#e05656',
     critColor: '#ff2020',
     aura: 'rgba(224,86,86,.45)',
@@ -258,26 +255,80 @@ const PATHS = {
   },
 };
 
+const CLASSES = {
+  sword: {
+    righteous: {
+      name: 'Мечник Нирваны',
+      desc: 'Быстрые точные удары.\nНавыки: Тысяча Лотосов, Стойка Небес.',
+      skillQ: { icon: '🪷', name: 'Тысяча Лотосов' },
+      skillW: { icon: '🛡️', name: 'Стойка Небес' },
+    },
+    fallen: {
+      name: 'Клинок Кровавой Луны',
+      desc: 'Вампиризм, кровотечение, безумие.\nНавыки: Когти Разрыва, Кровавый Пакт.',
+      skillQ: { icon: '🩸', name: 'Когти Разрыва' },
+      skillW: { icon: '💉', name: 'Кровавый Пакт' },
+    },
+  },
+  mage: {
+    righteous: {
+      name: 'Небесный Заклинатель',
+      desc: 'Молнии бьют по толпе, купол поглощает урон.\nНавыки: Цепь Молний, Купол Чистоты.',
+      skillQ: { icon: '⚡', name: 'Цепь Молний' },
+      skillW: { icon: '🔮', name: 'Купол Чистоты' },
+    },
+    fallen: {
+      name: 'Чернокнижник Пустоты',
+      desc: 'Пьёт души всех врагов, слабит их проклятиями.\nНавыки: Жатва Душ, Проклятие Слабости.',
+      skillQ: { icon: '💀', name: 'Жатва Душ' },
+      skillW: { icon: '🕸️', name: 'Проклятие Слабости' },
+    },
+  },
+};
+
 function currentPath() { return PATHS[state.path] || PATHS.righteous; }
+function currentClass() {
+  const cls = CLASSES[state.cls || 'sword'];
+  return cls[state.path] || cls.righteous;
+}
 
 let HUB_SUBTITLE = 'Юный культиватор клана Цинхэ';
 
 function applyTheme() {
   document.body.dataset.path = state.path || '';
-  HUB_SUBTITLE = state.path ? currentPath().subtitle : 'Юный культиватор клана Цинхэ';
+  HUB_SUBTITLE = state.path
+    ? `${currentPath().name} · ${currentClass().name}`
+    : 'Юный культиватор клана Цинхэ';
 }
 
 function choosePath(p) {
   state.path = p;
   saveState();
   applyTheme();
-  refreshHub();
   unlockAchievement('path');
+  // выбор класса следом за путём
+  const branch = state.path === 'fallen' ? 'fallen' : 'righteous';
+  document.getElementById('class-title').textContent = state.path === 'fallen'
+    ? 'Бездна предлагает оружие' : 'Три тени в Зеркале';
+  document.getElementById('class-sword-name').textContent = CLASSES.sword[branch].name;
+  document.getElementById('class-sword-desc').textContent = CLASSES.sword[branch].desc;
+  document.getElementById('class-mage-name').textContent = CLASSES.mage[branch].name;
+  document.getElementById('class-mage-desc').textContent = CLASSES.mage[branch].desc;
+  showScreen('class');
+}
+
+function chooseClass(cls) {
+  state.cls = cls;
+  saveState();
+  applyTheme();
+  refreshHub();
   showShareCard();
 }
 
 document.getElementById('choose-righteous').onclick = () => choosePath('righteous');
 document.getElementById('choose-fallen').onclick = () => choosePath('fallen');
+document.getElementById('choose-sword').onclick = () => chooseClass('sword');
+document.getElementById('choose-mage').onclick = () => chooseClass('mage');
 
 /* ================= ВИРАЛЬНАЯ КАРТОЧКА ================= */
 const GAME_LINK = 'https://t.me/padshiy_lotos_bot/game'; // заменить после деплоя бота
@@ -326,6 +377,7 @@ const screens = {
   forge: document.getElementById('screen-forge'),
   battle: document.getElementById('screen-battle'),
   choice: document.getElementById('screen-choice'),
+  class: document.getElementById('screen-class'),
 };
 
 function showScreen(name) {
@@ -908,6 +960,9 @@ function startRun(floorIndex) {
     particles: [],
     dmgNumbers: [],
     telegraphs: [],
+    projectiles: [],
+    bolts: [],
+    curseUntil: 0,
     player: {
       x: 90,
       y: canvas.clientHeight / 2,
@@ -926,6 +981,7 @@ function startRun(floorIndex) {
 
   const fallen = state.path === 'fallen';
   const r = {
+    cls: state.cls || 'sword',
     dmgMult: 1,
     hpMult: 1,
     atkSpeedMult: ECON.baseAtkSpeed(),
@@ -935,6 +991,8 @@ function startRun(floorIndex) {
     critChance: 0.05,
     madness: 0, // стаки безумия (демонический путь)
     bloodPactUntil: 0,
+    shieldHP: 0,
+    shieldUntil: 0,
     hp: 0,
     maxHP() { return Math.floor(ECON.baseHP() * this.hpMult); },
     dmg() {
@@ -947,14 +1005,14 @@ function startRun(floorIndex) {
   battle.run = r;
   r.hp = r.maxHP();
 
-  const path = currentPath();
-  document.querySelector('#skill-q .skill-icon').textContent = path.skillQ.icon;
-  document.querySelector('#skill-q .skill-name').textContent = path.skillQ.name;
-  document.querySelector('#skill-w .skill-icon').textContent = path.skillW.icon;
-  document.querySelector('#skill-w .skill-name').textContent = path.skillW.name;
+  const cls = currentClass();
+  document.querySelector('#skill-q .skill-icon').textContent = cls.skillQ.icon;
+  document.querySelector('#skill-q .skill-name').textContent = cls.skillQ.name;
+  document.querySelector('#skill-w .skill-icon').textContent = cls.skillW.icon;
+  document.querySelector('#skill-w .skill-name').textContent = cls.skillW.name;
 
   spawnRoom(0);
-  if (/^#(battle|fallen)/.test(location.hash)) battle.enemies.forEach((e, i) => { e.x = 210 + i * 70; }); // отладка
+  if (/^#(battle|fallen|mage)/.test(location.hash)) battle.enemies.forEach((e, i) => { e.x = 210 + i * 70; }); // отладка
   updateHpBar();
   requestAnimationFrame(battleLoop);
 }
@@ -1035,7 +1093,36 @@ function useSkillQ() {
   if (!battle || battle.phase !== 'fight' || battle.cdQ > 0) return;
   const r = battle.run;
   const path = currentPath();
-  if (state.path === 'fallen') {
+  const mage = r.cls === 'mage';
+  if (mage && state.path !== 'fallen') {
+    // Цепь Молний: прыгает по трём целям с затуханием
+    battle.cdQ = 8;
+    const base = (50 + r.dmg() * 0.9) * r.skillQMult;
+    const sorted = battle.enemies.filter(e => e.hp > 0).sort((a, b2) => a.x - b2.x);
+    const chain = sorted.slice(0, 3);
+    const pts = [{ x: battle.player.x + 20, y: battle.player.y - 10 }];
+    chain.forEach((e, i) => {
+      dealDamage(e, base * Math.pow(0.75, i), i === 0);
+      pts.push({ x: e.x, y: e.y - 8 });
+    });
+    if (pts.length > 1) battle.bolts.push({ pts, life: 0.25 });
+    addDmgNumber(battle.player.x + 60, battle.player.y - 60, '⚡ ЦЕПЬ МОЛНИЙ', '#ffe040');
+  } else if (mage && state.path === 'fallen') {
+    // Жатва Душ: урон всем + исцеление от нанесённого
+    battle.cdQ = 8;
+    let dealt = 0;
+    battle.enemies.forEach(e => {
+      if (e.hp <= 0) return;
+      const before = e.hp;
+      const dmg = (25 + r.dmg() * 0.5) * r.skillQMult;
+      dealDamage(e, dmg, false);
+      dealt += Math.min(before, dmg);
+      addParticles(e.x, e.y, '#a040ff', 5);
+    });
+    r.heal(dealt * 0.1);
+    updateHpBar();
+    addDmgNumber(battle.player.x + 60, battle.player.y - 60, '💀 ЖАТВА ДУШ: +' + Math.round(dealt * 0.1), '#a040ff');
+  } else if (state.path === 'fallen') {
     // Когти Разрыва: меньше мгновенного урона, но кровотечение 3 сек
     battle.cdQ = 7;
     const dmg = (40 + r.dmg() * 0.8) * r.skillQMult;
@@ -1061,17 +1148,30 @@ function useSkillQ() {
 function useSkillW() {
   if (!battle || battle.phase !== 'fight' || battle.cdW > 0) return;
   const r = battle.run;
-  if (state.path === 'fallen') {
+  const mage = r.cls === 'mage';
+  const nowSec = performance.now() / 1000;
+  if (mage && state.path !== 'fallen') {
+    // Купол Чистоты: поглощающий щит на 6 сек
+    battle.cdW = 16;
+    r.shieldHP = Math.floor(40 + r.maxHP() * 0.2);
+    r.shieldUntil = nowSec + 6;
+    addDmgNumber(battle.player.x, battle.player.y - 50, '🔮 КУПОЛ ЧИСТОТЫ: ' + r.shieldHP, '#7ec8ff');
+  } else if (mage && state.path === 'fallen') {
+    // Проклятие Слабости: враги наносят половину урона 6 сек
+    battle.cdW = 16;
+    battle.curseUntil = nowSec + 6;
+    addDmgNumber(battle.player.x, battle.player.y - 50, '🕸️ ПРОКЛЯТИЕ СЛАБОСТИ', '#a040ff');
+  } else if (state.path === 'fallen') {
     // Кровавый Пакт: -25% текущего HP, урон x2 на 10 сек
     battle.cdW = 18;
     const sacrifice = Math.floor(r.hp * 0.25);
     r.hp = Math.max(1, r.hp - sacrifice);
-    r.bloodPactUntil = performance.now() / 1000 + 10;
+    r.bloodPactUntil = nowSec + 10;
     addDmgNumber(battle.player.x, battle.player.y - 50, '💉 КРОВАВЫЙ ПАКТ: -' + sacrifice, '#e05656');
     updateHpBar();
   } else {
     battle.cdW = 15;
-    battle.player.invulnUntil = performance.now() / 1000 + 3;
+    battle.player.invulnUntil = nowSec + 3;
     addDmgNumber(battle.player.x, battle.player.y - 50, '🛡️ СТОЙКА НЕБЕС', '#7ec8ff');
   }
   if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
@@ -1096,6 +1196,27 @@ function battleLoop(now) {
   requestAnimationFrame(battleLoop);
 }
 
+// Урон по игроку с учётом проклятия (слабые враги) и купола
+function applyPlayerDamage(rawDmg) {
+  const b = battle, r = b.run, p = b.player;
+  const nowSec = performance.now() / 1000;
+  let dmg = rawDmg * (nowSec < b.curseUntil ? 0.5 : 1);
+  if (nowSec < r.shieldUntil && r.shieldHP > 0) {
+    const absorbed = Math.min(r.shieldHP, dmg);
+    r.shieldHP -= absorbed;
+    dmg -= absorbed;
+    addDmgNumber(p.x, p.y - p.radius - 8, 'КУПОЛ', '#7ec8ff');
+  }
+  dmg = Math.max(0, Math.round(dmg));
+  if (dmg > 0) {
+    r.hp -= dmg;
+    addDmgNumber(p.x, p.y - p.radius - 8, '-' + dmg, '#ff6b6b');
+    addParticles(p.x, p.y, '#ff6b6b', 6);
+    updateHpBar();
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+  }
+}
+
 function updateBattle(dt) {
   const b = battle, r = b.run, p = b.player;
   const nowSec = performance.now() / 1000;
@@ -1113,10 +1234,48 @@ function updateBattle(dt) {
   const alive = b.enemies.filter(e => e.hp > 0);
   if (p.atkTimer <= 0 && alive.length > 0) {
     p.atkTimer = 1 / r.atkSpeedMult;
-    const target = alive.reduce((a, e2) => (e2.x < a.x ? e2 : a), alive[0]);
     const isCrit = Math.random() < r.critChance;
-    dealDamage(target, r.dmg() * (isCrit ? 2 : 1), isCrit);
+    if (r.cls === 'mage') {
+      // Маг: снаряд в самого живучего врага
+      const target = alive.reduce((a, e2) => (e2.hp > a.hp ? e2 : a), alive[0]);
+      b.projectiles.push({
+        x: p.x + p.radius + 6, y: p.y - 10,
+        target, speed: 460,
+        dmg: r.dmg() * (isCrit ? 2 : 1), crit: isCrit,
+        trail: [],
+      });
+      SFX.hit();
+    } else {
+      const target = alive.reduce((a, e2) => (e2.x < a.x ? e2 : a), alive[0]);
+      dealDamage(target, r.dmg() * (isCrit ? 2 : 1), isCrit);
+    }
   }
+
+  // Снаряды мага
+  const aliveNow = b.enemies.filter(e => e.hp > 0);
+  b.projectiles.forEach(pr => {
+    if (!pr.target || pr.target.hp <= 0) pr.target = aliveNow[0] || null;
+    if (!pr.target) { pr.done = true; return; }
+    const tx = pr.target.x, ty = pr.target.y - 8;
+    const dx = tx - pr.x, dy = ty - pr.y;
+    const d = Math.hypot(dx, dy);
+    const step = pr.speed * dt;
+    if (d <= step + pr.target.radius * 0.5) {
+      dealDamage(pr.target, pr.dmg, pr.crit);
+      pr.done = true;
+    } else {
+      pr.x += (dx / d) * step;
+      pr.y += (dy / d) * step;
+      pr.trail.push({ x: pr.x, y: pr.y, life: 0.22 });
+    }
+    pr.trail.forEach(tp => { tp.life -= dt; });
+    pr.trail = pr.trail.filter(tp => tp.life > 0);
+  });
+  b.projectiles = b.projectiles.filter(pr => !pr.done);
+
+  // Молнии (визуал)
+  b.bolts.forEach(bolt => { bolt.life -= dt; });
+  b.bolts = b.bolts.filter(bolt => bolt.life > 0);
 
   // Враги
   alive.forEach(e => {
@@ -1140,11 +1299,7 @@ function updateBattle(dt) {
       if (e.atkTimer <= 0) {
         e.atkTimer = e.atkCd;
         if (nowSec >= p.invulnUntil) {
-          r.hp -= e.dmg;
-          addDmgNumber(p.x, p.y - p.radius - 8, '-' + e.dmg, '#ff6b6b');
-          addParticles(p.x, p.y, '#ff6b6b', 6);
-          updateHpBar();
-          if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+          applyPlayerDamage(e.dmg);
         } else {
           addDmgNumber(p.x, p.y - p.radius - 8, 'БЛОК', '#7ec8ff');
         }
@@ -1161,11 +1316,7 @@ function updateBattle(dt) {
     t.t -= dt;
     if (t.t <= 0) {
       if (nowSec >= p.invulnUntil) {
-        r.hp -= t.dmg;
-        addDmgNumber(p.x, p.y - p.radius - 8, '-' + t.dmg, '#ff6b6b');
-        addParticles(p.x, p.y, '#ff6b6b', 10);
-        updateHpBar();
-        if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+        applyPlayerDamage(t.dmg);
       } else {
         addDmgNumber(p.x, p.y - p.radius - 8, 'БЛОК', '#7ec8ff');
       }
@@ -1248,7 +1399,61 @@ function renderBattle() {
     ctx.lineWidth = 3;
     ctx.stroke();
   }
-  drawPlayer(ctx, p.x, p.y, p.radius, { path: currentPath(), fallen: state.path === 'fallen' });
+  // Купол Чистоты
+  if (nowSec < r.shieldUntil && r.shieldHP > 0) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius + 16 + Math.sin(nowSec * 4) * 2, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(126,200,255,.9)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+  drawPlayer(ctx, p.x, p.y, p.radius, { path: currentPath(), fallen: state.path === 'fallen', cls: r.cls });
+
+  // Проклятие Слабости — фиолетовая дымка
+  if (nowSec < b.curseUntil) {
+    ctx.fillStyle = 'rgba(120,40,160,.08)';
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  // Молнии
+  b.bolts.forEach(bolt => {
+    ctx.globalAlpha = Math.min(1, bolt.life * 5);
+    ctx.strokeStyle = '#ffe040';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = '#ffe040';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    for (let i = 0; i < bolt.pts.length - 1; i++) {
+      const a = bolt.pts[i], c = bolt.pts[i + 1];
+      ctx.moveTo(a.x, a.y);
+      const midX = (a.x + c.x) / 2 + (Math.random() - 0.5) * 24;
+      const midY = (a.y + c.y) / 2 + (Math.random() - 0.5) * 24;
+      ctx.lineTo(midX, midY);
+      ctx.lineTo(c.x, c.y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  });
+
+  // Снаряды мага
+  b.projectiles.forEach(pr => {
+    pr.trail.forEach(tp => {
+      ctx.globalAlpha = tp.life * 3;
+      ctx.fillStyle = currentPath().dmgColor;
+      ctx.beginPath();
+      ctx.arc(tp.x, tp.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    ctx.shadowColor = currentPath().dmgColor;
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(pr.x, pr.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  });
 
   // Враги
   b.enemies.forEach(e => {
@@ -1411,6 +1616,7 @@ function doRebirth() {
   state.talismans = { seal: 0, ward: 0, feather: 0, tear: 0 };
   state.maxFloor = 1;
   state.path = null; // снова выбор природы
+  state.cls = null;  // и класса
   saveState();
   applyTheme();
 }
@@ -1452,6 +1658,9 @@ function boot() {
   if (dbg) startRun(Math.min(FLOORS.length, parseInt(dbg[1], 10)) - 1);
   if (location.hash === '#choice') showScreen('choice');
   if (location.hash === '#fallen') { state.path = 'fallen'; applyTheme(); startRun(0); }
+  if (location.hash === '#mage') { state.path = 'righteous'; state.cls = 'mage'; applyTheme(); startRun(0); }
+  if (location.hash === '#magefallen') { state.path = 'fallen'; state.cls = 'mage'; applyTheme(); startRun(0); }
+  if (location.hash === '#class') choosePath('righteous');
   if (location.hash === '#meditate' || location.hash === '#cave') openCave();
   if (location.hash === '#forge') openForge();
   if (location.hash === '#tower') document.getElementById('tower-overlay').classList.remove('hidden');

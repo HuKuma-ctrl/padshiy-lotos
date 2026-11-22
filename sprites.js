@@ -79,6 +79,26 @@ function drawPlayer(ctx, x, y, r, opts) {
   // Глаза
   spEyes(ctx, x, y - r * 0.55, r * 0.13, r * 0.045, fallen ? '#ff4040' : '#2a2a3a');
 
+  if (opts.cls === 'mage') {
+    // Посох со светящейся сферой
+    ctx.save();
+    ctx.translate(x + r * 0.72, y + r * 0.3);
+    ctx.strokeStyle = '#4a3520';
+    ctx.lineWidth = r * 0.1;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -r * 1.5);
+    ctx.stroke();
+    spGlow(ctx, trim, 16);
+    ctx.fillStyle = spRadial(ctx, 0, -r * 1.65, r * 0.22, '#ffffff', trim);
+    ctx.beginPath();
+    ctx.arc(0, -r * 1.65, r * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    spNoGlow(ctx);
+    ctx.restore();
+    return;
+  }
+
   // Меч в правой руке, клинком вверх
   ctx.save();
   ctx.translate(x + r * 0.75, y + r * 0.15);

@@ -334,3 +334,5 @@ html, body {
 .choice-fallen .choice-name { color: #e05656; }
 .choice-desc { font-size: 13px; color: var(--text-dim); line-height: 1.6; margin-top: 8px; white-space: pre-line; }
 .choice-warning { text-align: center; font-size: 12px; color: var(--text-dim); opacity: .7; }
+#screen-class .choice-card { border: 2px solid var(--gold-dim); }
+#screen-class .choice-name { color: var(--gold); }
