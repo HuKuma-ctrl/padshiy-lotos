@@ -850,6 +850,37 @@ function drawCaveEntrance(ctx, x, y, r, t, fallen) {
   ctx.fill();
 }
 
+// Стела достижений: каменная плита с руной
+function drawShrine(ctx, x, y, r, t, lit) {
+  // основание
+  ctx.fillStyle = '#232838';
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.7, y);
+  ctx.lineTo(x - r * 0.55, y - r * 0.25);
+  ctx.lineTo(x + r * 0.55, y - r * 0.25);
+  ctx.lineTo(x + r * 0.7, y);
+  ctx.closePath();
+  ctx.fill();
+  // плита
+  ctx.fillStyle = '#2e3450';
+  ctx.beginPath();
+  ctx.roundRect(x - r * 0.42, y - r * 1.5, r * 0.84, r * 1.35, r * 0.15);
+  ctx.fill();
+  // руна (светится, если есть новые достижения)
+  const pulse = lit ? 0.6 + Math.sin(t * 3) * 0.3 : 0.3;
+  spGlow(ctx, '#e8c15a', 14 * pulse);
+  ctx.strokeStyle = lit ? '#ffe090' : '#8a7f5a';
+  ctx.lineWidth = Math.max(2, r * 0.08);
+  ctx.beginPath();
+  ctx.moveTo(x, y - r * 1.25);
+  ctx.lineTo(x + r * 0.18, y - r * 0.95);
+  ctx.lineTo(x, y - r * 0.65);
+  ctx.lineTo(x - r * 0.18, y - r * 0.95);
+  ctx.closePath();
+  ctx.stroke();
+  spNoGlow(ctx);
+}
+
 /* ---------- Декорации: бамбук ---------- */function drawBamboo(ctx, x, y, h, alpha) {
   ctx.save();
   ctx.globalAlpha = alpha;

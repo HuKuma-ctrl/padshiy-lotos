@@ -60,6 +60,8 @@ html, body {
 #hub-canvas { display: block; width: 100%; height: 44vh; touch-action: manipulation; }
 .hub-bottom { padding: 0 16px max(16px, env(safe-area-inset-bottom)); }
 #tower-overlay #floor-buttons { width: 100%; max-width: 340px; }
+#achv-progress { font-size: 16px; color: var(--text-dim); }
+.achv-scroll { width: 100%; max-width: 340px; max-height: 55vh; overflow-y: auto; }
 #floor-buttons { display: flex; flex-direction: column; gap: 8px; }
 .floor-btn { position: relative; }
 .floor-btn.locked { background: var(--panel2); color: var(--text-dim); }

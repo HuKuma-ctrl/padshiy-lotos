@@ -221,6 +221,8 @@ function unlockAchievement(id) {
 function renderAchievements() {
   const wrap = document.getElementById('achv-list');
   if (!wrap) return;
+  const prog = document.getElementById('achv-progress');
+  if (prog) prog.textContent = `(${Object.keys(state.achievements).length}/${ACHIEVEMENTS.length})`;
   wrap.innerHTML = '';
   ACHIEVEMENTS.forEach(a => {
     const got = !!state.achievements[a.id];
@@ -422,6 +424,9 @@ document.getElementById('back-forge').onclick = () => { refreshHub(); showScreen
 document.getElementById('tower-close').onclick = () => {
   document.getElementById('tower-overlay').classList.add('hidden');
 };
+document.getElementById('achv-close').onclick = () => {
+  document.getElementById('achv-overlay').classList.add('hidden');
+};
 
 /* ================= ХАБ: сцена деревни ================= */
 const hubCanvas = document.getElementById('hub-canvas');
@@ -446,6 +451,7 @@ function hubLayout() {
     cave:   { x: w * 0.5,  y: h * 0.47, r: u * 0.17, label: 'Пещера' },
     forge:  { x: w * 0.22, y: h * 0.86, r: u * 0.15, label: 'Печь' },
     tower:  { x: w * 0.78, y: h * 0.93, r: u * 0.24, label: 'Башня' },
+    shrine: { x: w * 0.5,  y: h * 0.95, r: u * 0.13, label: 'Стела' },
   };
 }
 
@@ -487,18 +493,24 @@ function renderHub(t) {
   drawCaveEntrance(ctx, L.cave.x, L.cave.y + L.cave.r * 0.8, L.cave.r, t, fallen);
   drawFurnace(ctx, L.forge.x, L.forge.y - L.forge.r * 0.7, L.forge.r * 0.75, t);
   drawPagoda(ctx, L.tower.x, L.tower.y, L.tower.r, t);
+  const achvCount = Object.keys(state.achievements).length;
+  drawShrine(ctx, L.shrine.x, L.shrine.y, L.shrine.r, t, achvCount > 0);
 
   // подписи
   ctx.textAlign = 'center';
   ctx.font = 'bold 14px sans-serif';
-  [[L.cave, L.cave.y + L.cave.r * 1.35], [L.forge, L.forge.y + L.forge.r * 0.75], [L.tower, L.h * 0.97]].forEach(([o, ly]) => {
+  [[L.cave, L.cave.y + L.cave.r * 1.35, L.cave.label],
+    [L.forge, L.forge.y + L.forge.r * 0.75, L.forge.label],
+    [L.tower, L.tower.y + L.tower.r * 0.12, L.tower.label],
+    [L.shrine, L.shrine.y + 16, `Стела ${achvCount}/${ACHIEVEMENTS.length}`],
+  ].forEach(([o, ly, label]) => {
     ctx.fillStyle = 'rgba(0,0,0,.5)';
-    const tw = ctx.measureText(o.label).width + 18;
+    const tw = ctx.measureText(label).width + 18;
     ctx.beginPath();
     ctx.roundRect(o.x - tw / 2, ly - 13, tw, 20, 10);
     ctx.fill();
     ctx.fillStyle = '#e8c15a';
-    ctx.fillText(o.label, o.x, ly + 1);
+    ctx.fillText(label, o.x, ly + 1);
   });
 
   // заголовок
@@ -523,6 +535,12 @@ function onHubTap(e) {
   if (hit(L.tower)) {
     SFX.tap();
     document.getElementById('tower-overlay').classList.remove('hidden');
+    return;
+  }
+  if (hit(L.shrine)) {
+    SFX.tap();
+    renderAchievements();
+    document.getElementById('achv-overlay').classList.remove('hidden');
   }
 }
 hubCanvas.addEventListener('click', onHubTap); // click — после отпускания: жест не может задеть кнопки оверлея
